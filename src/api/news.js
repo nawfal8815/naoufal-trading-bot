@@ -1,66 +1,43 @@
-const puppeteer = require("puppeteer");
+const fetch = require('node-fetch');
+const config = require('../../config/config');
 
-async function getTodaysEurUsdEvents() {
-    const browser = await puppeteer.launch({
-        headless: false,
-        slowMo: 30,
-        args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-blink-features=AutomationControlled"
-        ]
-    });
+async function getTodaysEurUsdEvents(date = new Date()) {
+    try {
+        const formattedDate = date.toISOString().split('T')[0];
+        const apiKey = config.tradingEconomics.apiKey;
 
-    const page = await browser.newPage();
-    await page.goto("https://www.forexfactory.com/calendar", {
-        waitUntil: "networkidle2"
-    });
+        const apiUrl = `${config.tradingEconomics.baseUrl}/calendar?c=${apiKey}&d1=${formattedDate}&d2=${formattedDate}`;
+        const response = await fetch(apiUrl);
 
-    await page.waitForSelector("table.calendar__table");
+        if (!response.ok) {
+            console.error(`API Error: ${response.status}`);
+            return [];
+        }
 
-    const events = await page.evaluate(() => {
-        const rows = document.querySelectorAll("tr.calendar__row");
-        const results = [];
+        const allEvents = await response.json();
 
-        let lastTime = null;
-        let lastCurrency = null;
+        if (!Array.isArray(allEvents)) {
+            console.error('Expected array but got:', typeof allEvents);
+            return [];
+        }
 
-        rows.forEach(row => {
-            const timeEl = row.querySelector(".calendar__time");
-            const currencyEl = row.querySelector(".calendar__currency");
-            const titleEl = row.querySelector(".calendar__event");
-            const impactEl = row.querySelector(".calendar__impact span");
+        // Filter for EUR/USD events
+        const filteredEvents = allEvents.filter(event => {
+            (event.currency === 'EUR' || event.currency === 'USD') && event.Date.split('T')[0] === formattedDate;
+        }).map(event => ({
+            time: event.Date.split('T')[1].substring(0, 5) || 'All Day',
+            currency: event.Currency,
+            impact: event.Importance === 3 ? 'High' :
+                event.Importance === 2 ? 'Medium' : 'Low',
+            source: 'TradingEconomics'
+        }));
 
-            if (timeEl && timeEl.innerText.trim()) {
-                lastTime = timeEl.innerText.trim();
-            }
+        return filteredEvents;
 
-            if (currencyEl && currencyEl.innerText.trim()) {
-                lastCurrency = currencyEl.innerText.trim();
-            }
-
-            if (!titleEl || !lastCurrency) return;
-
-            if (lastCurrency === "EUR" || lastCurrency === "USD") {
-                let impact = "Low";
-                if (impactEl?.classList.contains("impact__high")) impact = "High";
-                else if (impactEl?.classList.contains("impact__medium")) impact = "Medium";
-
-                results.push({
-                    time: lastTime,
-                    currency: lastCurrency,
-                    title: titleEl.innerText.trim(),
-                    impact
-                });
-            }
-        });
-
-        return results;
-    });
-
-    await browser.close();
-    return events;
+    } catch (error) {
+        console.error('Failed to fetch calendar:', error.message);
+        return [];
+    }
 }
-
 
 module.exports = { getTodaysEurUsdEvents };

@@ -52,6 +52,19 @@ module.exports = {
         accountName: process.env.IG_ACCOUNT_NAME,
         username: process.env.IG_USER_NAME,
         password: process.env.IG_PASSWORD
+    },
+    newsDataIo: {
+        apiKey: process.env.NEWS_DATA_IO_API_KEY
+    },
+
+    financialModelingPrep: {
+        apiKey: process.env.FINACIAL_MODELING_PREP_KEY,
+        baseUrl: "https://financialmodelingprep.com/api/v3"
+    },
+
+    tradingEconomics: {
+        apiKey: process.env.TRADING_ECONOMICS_API_KEY,
+        baseUrl: "https://api.tradingeconomics.com"
     }
 };
 

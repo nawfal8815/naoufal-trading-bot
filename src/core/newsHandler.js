@@ -49,6 +49,9 @@ function buildTradingRules(classifiedEvents) {
 
 async function newsDecision() {
     const events = await fetchTodayNews();
+    if (events.length === 0) {
+        return 0;
+    }
     const classified = classifyNews(events);
     return buildTradingRules(classified);
 }

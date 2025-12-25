@@ -37,7 +37,9 @@ async function runStrategy() {
     try {
         // Check news first
         const newsRules = await newsDecision();
-        if (newsRules.skipDay) {
+        if (newsRules === 0) {
+            console.log("No significant news events today, proceeding with strategy.");
+        } else if (newsRules != 0 && newsRules.skipDay) {
             console.log("⚠️ High impact news today, skipping trading for the day.");
             sendTelegramMessage(
                 `⚠️ *Trading Skipped Today*
@@ -95,7 +97,7 @@ async function runStrategy() {
 
 
         if (result.status === "confirmed") {
-            if (!confirmationTimeChecker(newsRules)) {
+            if (newsRules != 0 && !confirmationTimeChecker(newsRules)) {
                 sendTelegramMessage(
                     `⛔ *Trade Cancelled! ${config.symbol}*
                     Trade cancelled due to high-impact news events.
