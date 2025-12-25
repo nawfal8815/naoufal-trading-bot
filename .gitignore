@@ -5,7 +5,6 @@ node_modules/
 .env
 
 # Config files with secrets
-config/config.js
 config/apiKeys.js
 
 # Logs
