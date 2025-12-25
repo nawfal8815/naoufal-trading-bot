@@ -48,10 +48,10 @@ module.exports = {
         apiKey: process.env.IG_MARKETS_API_KEY,
         baseUrl: "https://demo-api.ig.com/gateway/deal",
         environment: "demo", // or "live"
-        accountID: "Z66KDR",
-        accountName: "CFD",
-        username: "nawfal8815",
-        password: "Nawnaw881500?"
+        accountID: process.env.IG_ACCOUNT_ID,
+        accountName: process.env.IG_ACCOUNT_NAME,
+        username: process.env.IG_USER_NAME,
+        password: process.env.IG_PASSWORD
     }
 };
 
