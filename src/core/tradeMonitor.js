@@ -1,4 +1,5 @@
 const { getLivePrice } = require('../api/dataFeed');
+const {sendTelegramMessage} = require("../services/telegram");
 
 function monitorTrade(tpPrice, slPrice) {
     const interval = 15 * 60 * 1000; // 15 minutes in ms
@@ -10,9 +11,15 @@ function monitorTrade(tpPrice, slPrice) {
 
             if (currentPrice >= tpPrice) {
                 console.log(`✅ Trade WIN! Price reached TP: ${tpPrice}`);
+                sendTelegramMessage(`✅ *Trade WIN! ${config.symbol}*
+                Price reached Take Profit: ${tpPrice}
+                `, { parse_mode: "Markdown" });
                 clearInterval(monitorId);
             } else if (currentPrice <= slPrice) {
                 console.log(`❌ Trade LOSE! Price hit SL: ${slPrice}`);
+                sendTelegramMessage(`❌ *Trade LOSE! ${config.symbol}*
+                Price hit Stop Loss: ${slPrice}
+                `, { parse_mode: "Markdown" });
                 clearInterval(monitorId);
             } else {
                 console.log(`ℹ️ Trade still open. Waiting for next check...`);
