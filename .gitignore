@@ -1,0 +1,16 @@
+# Node dependencies
+node_modules/
+
+# Environment variables
+.env
+
+# Config files with secrets
+config/config.js
+config/apiKeys.js
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
