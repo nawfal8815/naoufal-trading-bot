@@ -8,6 +8,7 @@ const config = require("../../config/config");
 const { newsDecision } = require("../core/newsHandler");
 const { login, getAccount, executeTrade, scheduleStopAll } = require("../services/igMarkets");
 const { monitorTrade } = require("../core/tradeMonitor");
+const { sleep } = require("../utils/sleep");
 
 let strategyRunning = false; // prevent overlapping runs
 
@@ -33,6 +34,8 @@ async function runStrategy() {
         return runStrategy();
     }
 
+    await sleep(2000); // brief pause before proceeding
+
     //running main strategy logic
     try {
         // Check news first
@@ -50,6 +53,8 @@ async function runStrategy() {
             return runStrategy(); // restart fresh next day
         }
 
+        await sleep(2000); // brief pause before proceeding
+
         //get todays signal
         const signal = await signalBuilder();
         if (!signal || signal.potential === "none") {
@@ -64,6 +69,8 @@ async function runStrategy() {
             Potential: ${signal.potential}
         `, { parse_mode: "Markdown" });
         console.log("Final Signal:", signal.potential);
+
+        await sleep(2000); // brief pause before proceeding
 
         //find closest virgin FVG
         const fvg = await findClosestVirginFVG(signal.potential);
@@ -84,6 +91,8 @@ async function runStrategy() {
             { parse_mode: "Markdown" }
         );
         console.log("Closest Virgin FVG for signal:", fvg);
+        
+        await sleep(2000); // brief pause before proceeding
 
         //to add later: check if the market is ranged or trending before monitoring FVG
         //TO DO!!
@@ -119,7 +128,7 @@ async function runStrategy() {
                     Take Profit: ${entryData.takeProfit}
                     Position Size: ${entryData.positionSize} units
                     `, { parse_mode: "Markdown" });
-                
+
                 await executeTrade(
                     config.igMarkets.accountID,
                     "CS.D.EURUSD.CFD.IP",
