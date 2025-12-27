@@ -141,7 +141,7 @@ async function runStrategy() {
                     entryData.sl,
                     entryData.tp
                 );
-                monitorTrade(entryData.takeProfit, entryData.stopLoss);
+                monitorTrade(entryData.takeProfit, entryData.stopLoss, signal.potential);
                 scheduleStopAll();
                 console.log("Trade executed successfully. Strategy cycle complete for the day.");
                 strategyRunning = false;
