@@ -25,10 +25,6 @@ async function getEntryData (fvg, candle, bias) {
 }
 
 async function confirmationTimeChecker(rules) {
-    if (rules.skipDay) {
-        console.log("⛔ Trading skipped for the day due to high-impact news.");
-        return false;
-    }
 
     const warningIssued = false;
     const now = new Date();

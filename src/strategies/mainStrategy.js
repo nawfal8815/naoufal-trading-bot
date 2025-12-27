@@ -34,7 +34,7 @@ async function runStrategy() {
         strategyRunning = false;
         // retry after short delay
         console.log("Retrying strategy in 30 seconds...");
-        await new Promise(r => setTimeout(r, 30000));
+        await sleep(30000);
         return;
     }
 
@@ -64,7 +64,7 @@ async function runStrategy() {
         if (!signal || signal.potential === "none") {
             console.log("No valid signal, retrying in 10 secs...");
             strategyRunning = false;
-            await new Promise(r => setTimeout(r, 10000));
+            await sleep(10000);
             return;
         }
 
