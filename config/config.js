@@ -8,9 +8,10 @@ module.exports = {
     from: "EUR",
     to: "USD",
     timeframe: "M15",
-    timezone: "Europe/Vilnius",
     RR: 2, // Risk to Reward ratio
     multiplyer: 100000, // for position size calculation
+    daylycandles: 20,
+    candles15needed: 5000,
 
     risk: {
         perTrade: 0.01, // 1%

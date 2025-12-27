@@ -1,6 +1,7 @@
 const axios = require("axios");
 const config = require("../../config/config");
 
+// CANDLES UNACCURATE FOR ALPHAVANTAGE FREE TIER
 async function getDailySeriesArray() {
     const url = `${config.alphaVantage.baseUrl}?function=FX_DAILY` + 
     `&from_symbol=EUR` + 
@@ -22,13 +23,37 @@ async function getDailySeriesArray() {
 }
 
 
+// TRY LATER TWELVEDATA'S CANDLES
+// async function getDailySeriesArray() {
+//     const url = `${config.twelveData.baseUrl}/time_series` +
+//         `?symbol=EUR/USD` +
+//         `&interval=1day` +
+//         `&outputsize=${config.daylycandles}` +
+//         `&apikey=${config.twelveData.apiKey}`;
+
+//     const res = await axios.get(url);
+//     const values = res.data?.values;
+//     if (!values) return [];
+//     console.log(values);
+//     // Twelve Data returns newest first already
+//     return values.map(v => ({
+//         date: v.datetime,           // YYYY-MM-DD
+//         open: parseFloat(v.open),
+//         high: parseFloat(v.high),
+//         low: parseFloat(v.low),
+//         close: parseFloat(v.close),
+//     }));
+// }
+
+
+
 async function get15mSeriesArray() {
     try {
         const url = `${config.twelveData.baseUrl}/time_series`;
         const params = {
             symbol: "EUR/USD",
             interval: "15min",
-            outputsize: 5000,
+            outputsize: config.candles15needed,
             apikey: config.twelveData.apiKey,
             timezone: config.timezone
         };

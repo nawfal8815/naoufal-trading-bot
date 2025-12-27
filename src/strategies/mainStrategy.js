@@ -2,13 +2,14 @@ const { findClosestVirginFVG } = require("../core/fvgDetector");
 const { getEntryData, confirmationTimeChecker } = require("../core/riskManager");
 const signalBuilder = require("../core/signalBuilder");
 const { monitorFVG } = require("../core/fvgMonitor");
-const { sleepUntilNext2AM } = require("../utils/sleepUntilNext2AM");
+const { sleepUntilNextAsiaSession } = require("../utils/sleepUntilNextAsiaSession");
 const { sendTelegramMessage } = require("../services/telegram");
 const config = require("../../config/config");
 const { newsDecision } = require("../core/newsHandler");
 const { login, getAccount, executeTrade, scheduleStopAll } = require("../services/igMarkets");
 const { monitorTrade } = require("../core/tradeMonitor");
 const { sleep } = require("../utils/sleep");
+const { setTimeZone } = require("../utils/date");
 
 let strategyRunning = false; // prevent overlapping runs
 
@@ -16,6 +17,9 @@ async function runStrategy() {
 
     if (strategyRunning) return;
     strategyRunning = true;
+
+    // set Timezone
+    await setTimeZone();
 
     //login to broker
     try {
@@ -31,7 +35,7 @@ async function runStrategy() {
         // retry after short delay
         console.log("Retrying strategy in 30 seconds...");
         await new Promise(r => setTimeout(r, 30000));
-        return runStrategy();
+        return;
     }
 
     await sleep(2000); // brief pause before proceeding
@@ -49,8 +53,8 @@ async function runStrategy() {
                 High impact news events detected for ${config.symbol}. No trades will be taken today.
             `, { parse_mode: "Markdown" });
             strategyRunning = false;
-            await sleepUntilNext2AM();
-            return runStrategy(); // restart fresh next day
+            await sleepUntilNextAsiaSession();
+            return; // restart fresh next day
         }
 
         await sleep(2000); // brief pause before proceeding
@@ -61,7 +65,7 @@ async function runStrategy() {
             console.log("No valid signal, retrying in 10 secs...");
             strategyRunning = false;
             await new Promise(r => setTimeout(r, 10000));
-            return runStrategy();
+            return;
         }
 
         sendTelegramMessage(
@@ -77,21 +81,21 @@ async function runStrategy() {
         if (!fvg) {
             console.log("No virgin FVG found, restarting strategy the next day...");
             strategyRunning = false;
-            await sleepUntilNext2AM();
-            return runStrategy();
+            await sleepUntilNextAsiaSession();
+            return;
         }
         sendTelegramMessage(
             `📊 *Closest Virgin FVG*
             Type: ${fvg.type}
             Created At: ${fvg.createdAt}
             Gap Low: ${fvg.gapLow}
-            Gap High: ${fvg.gapHigh}
+           Gap High: ${fvg.gapHigh}
             Virgin: ${fvg.fullVirgin ? "Full" : "50%"}
             `,
             { parse_mode: "Markdown" }
         );
         console.log("Closest Virgin FVG for signal:", fvg);
-        
+
         await sleep(2000); // brief pause before proceeding
 
         //to add later: check if the market is ranged or trending before monitoring FVG
@@ -113,8 +117,8 @@ async function runStrategy() {
                     `, { parse_mode: "Markdown" });
                 console.log("Trade cancelled due to news impact.");
                 strategyRunning = false;
-                await sleepUntilNext2AM();
-                return runStrategy(); // restart fresh next day
+                await sleepUntilNextAsiaSession();
+                return; // restart fresh next day
             } else {
                 //place trade
                 const entryData = getEntryData(result.fvg, result.entryCandle, signal.potential);
@@ -141,18 +145,18 @@ async function runStrategy() {
                 scheduleStopAll();
                 console.log("Trade executed successfully. Strategy cycle complete for the day.");
                 strategyRunning = false;
-                await sleepUntilNext2AM();
-                return runStrategy(); // restart fresh next day
+                await sleepUntilNextAsiaSession();
+                return; // restart fresh next day
             }
         } if (result.status === "expired-day") {
             console.log("❌ Day expired. Waiting until next session...");
             strategyRunning = false;
-            await sleepUntilNext2AM();
-            return runStrategy(); // restart fresh next day
+            await sleepUntilNextAsiaSession();
+            return // restart fresh next day
         } else {
             console.log("FVG expired or invalidated. Restarting strategy...");
             strategyRunning = false;
-            return runStrategy();
+            return;
         }
 
     } catch (err) {
@@ -161,10 +165,9 @@ async function runStrategy() {
         // retry after short delay
         console.log("Retrying strategy in 30 seconds...");
         await new Promise(r => setTimeout(r, 30000));
-        return runStrategy();
+        return;
     } finally {
-        strategyRunning = false;
-        return runStrategy();
+        if (!strategyRunning) return runStrategy();
     }
 }
 
