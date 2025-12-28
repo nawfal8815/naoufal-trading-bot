@@ -22,6 +22,7 @@ async function runStrategy() {
     if (await checkIfWeekend()){
         console.log("Weekend — no trading 🚫");
         await sleepUntilNextAsiaSession();
+        strategyRunning = false;
         return;
     }
 
