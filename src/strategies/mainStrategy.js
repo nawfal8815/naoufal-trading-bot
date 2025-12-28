@@ -9,7 +9,7 @@ const { newsDecision } = require("../core/newsHandler");
 const { login, getAccount, executeTrade, scheduleStopAll } = require("../services/igMarkets");
 const { monitorTrade } = require("../core/tradeMonitor");
 const { sleep } = require("../utils/sleep");
-const { setTimeZone } = require("../utils/date");
+const { setTimeZone, checkIfWeekend } = require("../utils/date");
 
 let strategyRunning = false; // prevent overlapping runs
 
@@ -17,6 +17,13 @@ async function runStrategy() {
 
     if (strategyRunning) return;
     strategyRunning = true;
+
+    //check if its weekend
+    if (await checkIfWeekend()){
+        console.log("Weekend — no trading 🚫");
+        await sleepUntilNextAsiaSession();
+        return;
+    }
 
     // set Timezone
     await setTimeZone();

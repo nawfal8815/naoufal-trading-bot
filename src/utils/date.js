@@ -75,5 +75,11 @@ async function setTimeZone () {
     console.log("🌐 Detected Timezone:", config.timezone);
 }
 
-module.exports = { is15MinBoundary, timeToMinutes, getNextAsiaSessionDate, setTimeZone };
+async function checkIfWeekend () {
+    const date = new Date();
+    const day = date.getDay(); // 0 = Sunday, 6 = Saturday
+
+    return day === 0 || day === 6;
+}
+module.exports = { is15MinBoundary, timeToMinutes, getNextAsiaSessionDate, setTimeZone, checkIfWeekend };
 
