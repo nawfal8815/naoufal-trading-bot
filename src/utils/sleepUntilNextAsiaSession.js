@@ -11,10 +11,6 @@ async function sleepUntilNextAsiaSession() {
     console.log(
         `⏳ Sleeping until ${asianSessionDate}`
     );
-    sendTelegramMessage(
-        `⏳ *Sleeping Until Next Asia Session*
-        The strategy is pausing until the next Asia session starts at ${asianSessionDate}.
-    `, { parse_mode: "Markdown" });
 
 
     await sleep(msToSleep);
