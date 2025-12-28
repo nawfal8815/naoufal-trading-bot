@@ -1,5 +1,6 @@
 const config = require("../../config/config");
 const { get15mSeriesArray } = require("../api/dataFeed");
+const { postData } = require('../server/apiClient.js');
 
 function isBefore2AM(datetime) {
     // 1️⃣ Get today's date in Vilnius
@@ -121,6 +122,11 @@ function isVirginFVG(fvg, candles, bias) {
 
 async function findClosestVirginFVG(bias) {
     const candles = await get15mSeriesArray();
+    await postData({
+        type: "candles",
+        timestamp: new Date().toISOString(),
+        candles: candles
+    });
     const fvgs = findFVGs(candles);
     const virgin = fvgs.map(f => isVirginFVG(f, candles, bias)).filter(Boolean);
     if (virgin.length === 0) return null;
