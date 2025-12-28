@@ -10,6 +10,7 @@ const { login, getAccount, executeTrade, scheduleStopAll } = require("../service
 const { monitorTrade } = require("../core/tradeMonitor");
 const { sleep } = require("../utils/sleep");
 const { setTimeZone } = require("../utils/date");
+const { postData } = require("../server/apiClient");
 
 let strategyRunning = false; // prevent overlapping runs
 
@@ -19,7 +20,13 @@ async function runStrategy() {
     strategyRunning = true;
 
     // set Timezone
-    await setTimeZone();
+    config.timezone = await setTimeZone();
+    if (config.timezone != "") {
+        await postData({
+            type: "timezone",
+            timezone: config.timezone
+        });
+    } else console.log("❌ Error posting the timezone");
 
     //login to broker
     try {
@@ -29,6 +36,15 @@ async function runStrategy() {
         const moneyAtRisk = config.risk.perTrade * account.balance.balance;
         config.risk.moneyAtRisk = moneyAtRisk;
         console.log(`💰 Money at Risk per Trade: ${config.risk.moneyAtRisk}`);
+        await postData({
+            type: "accountDetails",
+            timestamp: new Date().toISOString(),
+            account: {
+                accountID: account.accountId,
+                balance: account.balance.balance,
+                moneyAtRisk: config.risk.moneyAtRisk
+            }
+        });
     } catch (err) {
         console.error("❌ Login failed", err.response?.data || err.message);
         strategyRunning = false;
@@ -56,8 +72,15 @@ async function runStrategy() {
             await sleepUntilNextAsiaSession();
             return; // restart fresh next day
         }
+        await postData({
+            type: "news",
+            timestamp: new Date().toISOString(),
+            news: newsRules
+        });
+
 
         await sleep(2000); // brief pause before proceeding
+
 
         //get todays signal
         const signal = await signalBuilder();
@@ -67,6 +90,15 @@ async function runStrategy() {
             await sleep(10000);
             return;
         }
+
+        await postData({
+            type: "signal",
+            timestamp: new Date().toISOString(),
+            signal: {
+                potential: signal.potential,
+                target: signal.target
+            }
+        });
 
         sendTelegramMessage(
             `📈 *New Signal Detected! ${config.symbol}*
@@ -84,6 +116,12 @@ async function runStrategy() {
             await sleepUntilNextAsiaSession();
             return;
         }
+        await postData({
+            type: "fvg",
+            timestamp: new Date().toISOString(),
+            fvg: fvg
+        });
+
         sendTelegramMessage(
             `📊 *Closest Virgin FVG*
             Type: ${fvg.type}
@@ -141,6 +179,19 @@ async function runStrategy() {
                     entryData.sl,
                     entryData.tp
                 );
+                await postData({
+                    type: "executedTrade",
+                    timestamp: new Date().toISOString(),
+                    trade: {
+                        direction: signal.potential,
+                        entryPrice: entryData.entryPrice,
+                        stopLoss: entryData.sl,
+                        takeProfit: entryData.tp,
+                        positionSize: entryData.positionSize,
+                        epic: "CS.D.EURUSD.CFD.IP" // Hardcoded for now, can be passed later
+                    }
+                });
+
                 monitorTrade(entryData.takeProfit, entryData.stopLoss, signal.potential);
                 scheduleStopAll();
                 console.log("Trade executed successfully. Strategy cycle complete for the day.");

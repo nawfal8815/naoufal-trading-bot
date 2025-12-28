@@ -71,8 +71,9 @@ function getNextAsiaSessionDate() {
 
 
 async function setTimeZone () {
-    config.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    console.log("🌐 Detected Timezone:", config.timezone);
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    console.log("🌐 Detected Timezone:", timezone);
+    return timezone;
 }
 
 module.exports = { is15MinBoundary, timeToMinutes, getNextAsiaSessionDate, setTimeZone };
