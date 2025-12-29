@@ -1,7 +1,7 @@
-const {getTodaysEurUsdEvents} = require("../api/news");
+const { getNews } = require("../api/news");
 
 async function fetchTodayNews() {
-    return await getTodaysEurUsdEvents();
+    return await getNews();
 }
 
 function classifyNews(events) {

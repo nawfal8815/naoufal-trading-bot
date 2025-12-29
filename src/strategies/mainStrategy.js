@@ -9,7 +9,6 @@ const { newsDecision } = require("../core/newsHandler");
 const { login, getAccount, executeTrade, scheduleStopAll } = require("../services/igMarkets");
 const { monitorTrade } = require("../core/tradeMonitor");
 const { sleep } = require("../utils/sleep");
-const { setTimeZone } = require("../utils/date");
 const { postData } = require("../server/apiClient");
 const { setTimeZone, checkIfWeekend } = require("../utils/date");
 
@@ -69,7 +68,7 @@ async function runStrategy() {
     try {
         // Check news first
         const newsRules = await newsDecision();
-        if (newsRules === 0) {
+        if (newsRules === 0 || !newsRules.skipDay) {
             console.log("No significant news events today, proceeding with strategy.");
         } else if (newsRules != 0 && newsRules.skipDay) {
             console.log("⚠️ High impact news today, skipping trading for the day.");

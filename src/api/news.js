@@ -1,43 +1,75 @@
-const fetch = require('node-fetch');
-const config = require('../../config/config');
+const puppeteer = require('puppeteer');
 
-async function getTodaysEurUsdEvents(date = new Date()) {
-    try {
-        const formattedDate = date.toISOString().split('T')[0];
-        const apiKey = config.tradingEconomics.apiKey;
+const getNews = async () => {
+    const browser = await puppeteer.launch({
+        headless: 'new',
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        ]
+    });
 
-        const apiUrl = `${config.tradingEconomics.baseUrl}/calendar?c=${apiKey}&d1=${formattedDate}&d2=${formattedDate}`;
-        const response = await fetch(apiUrl);
+    const page = await browser.newPage();
 
-        if (!response.ok) {
-            console.error(`API Error: ${response.status}`);
-            return [];
+    // Set cookies first
+    await page.setCookie({
+        name: 'ff_timezone',
+        value: 'America/New_York',
+        domain: '.forexfactory.com'
+    });
+
+    console.log('Navigating for news...');
+    await page.goto('https://www.forexfactory.com/', {
+        waitUntil: 'networkidle0',
+        timeout: 60000
+    });
+
+    const news = await page.evaluate(async () => {
+        for (let attempt = 0; attempt < 5; attempt++) {
+            const rows = document.querySelectorAll('.calendar__row:not(.calendar__row--day-breaker)');
+            const data = [];
+
+            rows.forEach(row => {
+                const eventEl = row.querySelector('.calendar__event-title');
+                if (eventEl && eventEl.textContent.trim()) {
+                    let impact = 'N/A';
+
+                    const allSpans = row.querySelectorAll('span');
+                    for (const span of allSpans) {
+                        const title = span.getAttribute('title');
+                        if (title && title.includes('Impact Expected')) {
+                            if (title.includes('High Impact Expected')) impact = 'High';
+                            else if (title.includes('Medium Impact Expected')) impact = 'Medium';
+                            else if (title.includes('Low Impact Expected')) impact = 'Low';
+                            else impact = 'Low';
+                            break;
+                        }
+                    }
+
+                    const currency = row.querySelector('.calendar__currency')?.textContent.trim() || '';
+
+                    if (currency === 'USD' || currency === 'EUR') {
+                        data.push({
+                            time: row.querySelector('.calendar__time')?.textContent.trim() || '',
+                            currency: currency,
+                            event: eventEl.textContent.trim(),
+                            impact: impact
+                        });
+                    }
+                }
+            });
+
+            if (data.length > 0) return data;
+
+            await new Promise(resolve => setTimeout(resolve, 1000));
         }
-
-        const allEvents = await response.json();
-
-        if (!Array.isArray(allEvents)) {
-            console.error('Expected array but got:', typeof allEvents);
-            return [];
-        }
-
-        // Filter for EUR/USD events
-        const filteredEvents = allEvents.filter(event => {
-            (event.currency === 'EUR' || event.currency === 'USD') && event.Date.split('T')[0] === formattedDate;
-        }).map(event => ({
-            time: event.Date.split('T')[1].substring(0, 5) || 'All Day',
-            currency: event.Currency,
-            impact: event.Importance === 3 ? 'High' :
-                event.Importance === 2 ? 'Medium' : 'Low',
-            source: 'TradingEconomics'
-        }));
-
-        return filteredEvents;
-
-    } catch (error) {
-        console.error('Failed to fetch calendar:', error.message);
         return [];
-    }
-}
+    });
 
-module.exports = { getTodaysEurUsdEvents };
+    await browser.close();
+    return news;
+};
+
+
+module.exports = { getNews }

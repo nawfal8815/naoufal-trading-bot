@@ -56,17 +56,13 @@ module.exports = {
         password: process.env.IG_PASSWORD
     },
     newsDataIo: {
+        baseUrl: "https://newsdata.io/api/1/",
         apiKey: process.env.NEWS_DATA_IO_API_KEY
     },
 
-    financialModelingPrep: {
+    fmp: {
         apiKey: process.env.FINACIAL_MODELING_PREP_KEY,
         baseUrl: "https://financialmodelingprep.com/api/v3"
-    },
-
-    tradingEconomics: {
-        apiKey: process.env.TRADING_ECONOMICS_API_KEY,
-        baseUrl: "https://api.tradingeconomics.com"
     }
 };
 
