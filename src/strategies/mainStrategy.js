@@ -104,7 +104,8 @@ async function runStrategy() {
             timestamp: new Date().toISOString(),
             signal: {
                 potential: signal.potential,
-                target: signal.target
+                target: signal.target,
+                targetValid: signal.targetValid
             }
         });
 
@@ -117,7 +118,7 @@ async function runStrategy() {
         await sleep(2000); // brief pause before proceeding
 
         //find closest virgin FVG
-        const fvg = await findClosestVirginFVG(signal.potential);
+        const fvg = await findClosestVirginFVG(signal);
         if (!fvg) {
             console.log("No virgin FVG found, restarting strategy the next day...");
             strategyRunning = false;
@@ -150,8 +151,7 @@ async function runStrategy() {
         //monitor FVG for confirmation
         const result = await monitorFVG({
             fvg,
-            bias: signal.potential,
-            target: signal.target
+            signal
         });
 
 

@@ -57,13 +57,13 @@ function mapSignal(result) {
     }
 
     if (result.type === "WR") {
-        if (result.side === "bearish") return { potential: "sell" , target: result.target};
-        if (result.side === "bullish") return { potential: "buy", target: result.target };
+        if (result.side === "bearish") return { potential: "sell" , target: result.target, targetValid: true};
+        if (result.side === "bullish") return { potential: "buy", target: result.target, targetValid: true };
     }
 
     if (result.type === "BC") {
-        if (result.side === "bearish") return { potential: "sell", target: result.target };
-        if (result.side === "bullish") return { potential: "buy", target: result.target };
+        if (result.side === "bearish") return { potential: "sell", target: result.target, targetValid: true };
+        if (result.side === "bullish") return { potential: "buy", target: result.target, targetValid: true };
     }
 
     return { potential: "none" };

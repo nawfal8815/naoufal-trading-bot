@@ -4,13 +4,13 @@ const { fetchLatestClosedCandle } = require('../api/dataFeed');
 const { is15MinBoundary } = require('../utils/date');
 const { isRanged } = require("../core/RangeDetector");
 
-async function monitorFVG({ fvg, bias, target }) {
+async function monitorFVG({ fvg, signal}) {
     if (!fvg) return { status: "expired" };
-
+    let messageDisplayed = false;
     console.log("⏳ Waiting for price to enter FVG...");
 
     const startTime = Date.now();
-    const maxWait = 1000 * 60 * 60 * 2; // max 2 hours
+    const maxWait = 1000 * 60 * 60 * 10; // max 10 hours of monitoring
 
     // ---- PHASE 1: wait for touch ----
     while (true) {
@@ -29,9 +29,9 @@ async function monitorFVG({ fvg, bias, target }) {
             return { status: "expired" };
         }
 
-        if (!isTargetValid(priceData.price, bias, target)) {
-            console.log("🏁 Target reached before FVG touch:", priceData.price, ". No trade for today.", bias, target);
-            return { status: "expired-day" };
+        if (!signal.targetValid && !messageDisplayed) {
+            console.log(`🏁 ${signal.potential} Target ${signal.target} was reached today before FVG was touched: ${priceData.price}, the trade will be risky`);
+            messageDisplayed = true;
         }
 
         await sleep(10 * 60 * 1000); // 10 minute polling
@@ -55,13 +55,13 @@ async function monitorFVG({ fvg, bias, target }) {
         }
 
         // ❌ FVG invalidation
-        if (isFVGExpired(candle, fvg, bias)) {
+        if (isFVGExpired(candle, fvg, signal.potential)) {
             console.log("❌ FVG expired by candle close:", candle.close);
             return { status: "expired" };
         }
 
         // ✅ Confirmation
-        if (isConfirmationCandle(candle, bias)) {
+        if (isConfirmationCandle(candle, signal.potential)) {
             console.log("✅ Confirmation candle detected!");
             return {
                 status: "confirmed",
@@ -84,14 +84,6 @@ function isConfirmationCandle(candle, bias) {
     const downMove = candle.open - candle.low;
 
     return bias === "buy" ? upMove > downMove : downMove > upMove;
-}
-
-function isTargetValid(price, bias, target) {
-    if (bias === "buy") {
-        return price <= target;
-    } else {
-        return price >= target;
-    }
 }
 
 module.exports = { monitorFVG };

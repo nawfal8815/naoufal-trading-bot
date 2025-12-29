@@ -18,6 +18,18 @@ function isBefore2AM(datetime) {
     return candleTime < cutoff;
 }
 
+function isFullyCompleted (candleTime) {
+    const candleDate = new Date(candleTime);
+    const now = new Date();
+    
+    // Calculate time difference in milliseconds
+    const timeDiffMs = now - candleDate;
+    const fifteenMinutesMs = 15 * 60 * 1000; // 15 minutes in milliseconds
+    
+    // Check if 15 minutes have passed
+    return timeDiffMs >= fifteenMinutesMs;
+}
+
 
 
 function findFVGs(candles) {
@@ -29,7 +41,7 @@ function findFVGs(candles) {
         const c3 = candles[i];     // oldest
 
         // Bullish FVG
-        if (c1.low > c3.high && isBefore2AM(c2.datetime)) {
+        if (c1.low > c3.high && isBefore2AM(c2.datetime) && isFullyCompleted(c3.datetime)) {
             const gapSize = c1.low - c3.high;
 
             // ❌ reject fake gaps
@@ -47,7 +59,7 @@ function findFVGs(candles) {
         }
 
         // Bearish FVG
-        if (c1.high < c3.low && isBefore2AM(c2.datetime)) {
+        if (c1.high < c3.low && isBefore2AM(c2.datetime) && isFullyCompleted(c3.datetime)) {
             const gapSize = c3.low - c1.high;
 
             // ❌ reject fake gaps
@@ -69,7 +81,7 @@ function findFVGs(candles) {
 }
 
 
-function isVirginFVG(fvg, candles, bias) {
+function isVirginFVG(fvg, candles, signal) {
     let touched = false;
 
     for (const c of candles) {
@@ -77,10 +89,14 @@ function isVirginFVG(fvg, candles, bias) {
         if (new Date(c.datetime) <= new Date(fvg.createdAt)) continue;
 
         // ---- BULLISH FVG ----
-        if (bias === "buy") {
+        if (signal.potential === "buy") {
             // invalid if price crosses midpoint
             if (c.low < fvg.gapMid) {
                 return null;
+            }
+
+            if (signal.targetValid){
+                if (signal.target < c.high) signal.targetValid = false;
             }
 
             // touched but still valid (50%)
@@ -90,10 +106,14 @@ function isVirginFVG(fvg, candles, bias) {
         }
 
         // ---- BEARISH FVG ----
-        if (bias === "sell") {
+        if (signal.potential === "sell") {
             // invalid if price crosses midpoint
             if (c.high > fvg.gapMid) {
                 return null;
+            }
+
+            if (signal.targetValid){
+                if (signal.target > c.low) signal.targetValid = false;
             }
 
             // touched but still valid (50%)
@@ -120,7 +140,7 @@ function isVirginFVG(fvg, candles, bias) {
 
 
 
-async function findClosestVirginFVG(bias) {
+async function findClosestVirginFVG(signal) {
     const candles = await get15mSeriesArray();
     await postData({
         type: "candles",
@@ -128,12 +148,12 @@ async function findClosestVirginFVG(bias) {
         candles: candles
     });
     const fvgs = findFVGs(candles);
-    const virgin = fvgs.map(f => isVirginFVG(f, candles, bias)).filter(Boolean);
+    const virgin = fvgs.map(f => isVirginFVG(f, candles, signal)).filter(Boolean);
     if (virgin.length === 0) return null;
-
+    
     // newest first (index 0 = newest candle)
-    if (bias === "buy") return virgin.find(f => f.type === "bullish") || null;
-    if (bias === "sell") return virgin.find(f => f.type === "bearish") || null;
+    if (signal.potential === "buy") return virgin.find(f => f.type === "bullish") || null;
+    if (signal.potential === "sell") return virgin.find(f => f.type === "bearish") || null;
     return null;
 }
 
