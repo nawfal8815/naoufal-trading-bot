@@ -6,17 +6,19 @@ const config = require('../../config/config');
 const app = express();
 const PORT = config.port || 3000;
 
+const distPath = path.join(__dirname, "..", "dist");
+
 let dataStore = [];
 let candles = [];
 
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 
-// 👉 serve frontend
-app.use(express.static(path.join(__dirname, "dist")));
+// Serve frontend
+app.use(express.static(distPath));
 
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "dist", "index.html"));
+  res.sendFile(path.join(distPath, "index.html"));
 });
 
 app.post("/api/data", (req, res) => {
