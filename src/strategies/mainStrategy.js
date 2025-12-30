@@ -2,7 +2,7 @@ const { findClosestVirginFVG } = require("../core/fvgDetector");
 const { getEntryData, confirmationTimeChecker } = require("../core/riskManager");
 const signalBuilder = require("../core/signalBuilder");
 const { monitorFVG } = require("../core/fvgMonitor");
-const { sleepUntilNextAsiaSession } = require("../utils/sleepUntilNextAsiaSession");
+const { sleepUntilNextAsiaSession, msUntilNextAsiaSession } = require("../utils/sleepUntilNextAsiaSession");
 const { sendTelegramMessage } = require("../services/telegram");
 const config = require("../../config/config");
 const { newsDecision } = require("../core/newsHandler");
@@ -18,6 +18,14 @@ async function runStrategy() {
 
     if (strategyRunning) return;
     strategyRunning = true;
+
+    //set the timer to auto reexecute the strategie the next day
+    const delay = await msUntilNextAsiaSession();
+    setTimeout(() => {
+        console.log("🌅 New Asia session... Restarting the strategy");
+        strategyRunning = false;
+        return;
+    }, delay);
 
     //check if its weekend
     if (await checkIfWeekend()){

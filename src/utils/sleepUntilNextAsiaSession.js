@@ -16,4 +16,15 @@ async function sleepUntilNextAsiaSession() {
     await sleep(msToSleep);
 }
 
-module.exports = { sleepUntilNextAsiaSession };
+async function msUntilNextAsiaSession() {
+    const now = new Date().toISOString();
+    const asianSessionDate = getNextAsiaSessionDate();
+
+    const msToSleep = new Date(asianSessionDate).getTime() - new Date(now).getTime();
+
+
+    return msToSleep;
+}
+
+
+module.exports = { sleepUntilNextAsiaSession, msUntilNextAsiaSession };

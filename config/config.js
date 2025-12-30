@@ -13,6 +13,8 @@ module.exports = {
     multiplyer: 100000, // for position size calculation
     daylycandles: 20,
     candles15needed: 5000,
+    port: process.env.PORT,
+    url: process.env.URL,
 
     risk: {
         perTrade: 0.01, // 1%

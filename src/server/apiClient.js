@@ -1,6 +1,7 @@
 const axios = require('axios');
+const config = require('../../condig/config');
 
-const API_URL = 'http://localhost:3000/api/data';
+const API_URL = `${config.url}:${config.port}/api/data`;
 
 async function postData(data) {
   try {
