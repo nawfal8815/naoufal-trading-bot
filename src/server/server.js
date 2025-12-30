@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 const config = require('../../config/config');
 
 const app = express();
@@ -11,8 +12,11 @@ let candles = [];
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 
+// 👉 serve frontend
+app.use(express.static(path.join(__dirname, "dist")));
+
 app.get("/", (req, res) => {
-  res.send("Backend is running ✅");
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
 app.post("/api/data", (req, res) => {
