@@ -1,5 +1,5 @@
 const axios = require('axios');
-const config = require('../../condig/config');
+const config = require('../../config/config');
 
 const API_URL = `${config.url}:${config.port}/api/data`;
 
