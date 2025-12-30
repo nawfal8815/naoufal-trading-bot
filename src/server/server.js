@@ -6,8 +6,8 @@ const config = require('../../config/config');
 const app = express();
 const PORT = config.port || 3000;
 
-const distPath = path.join(__dirname, "..", "dist");
 
+const distPath = path.resolve(__dirname, "../../dist");
 let dataStore = [];
 let candles = [];
 
@@ -17,8 +17,8 @@ app.use(express.json({ limit: "50mb" }));
 // Serve frontend
 app.use(express.static(distPath));
 
-app.get("/", (req, res) => {
-  res.sendFile(path.join(distPath, "index.html"));
+app.get("*", (req, res) => {
+ res.sendFile(path.join(distPath, "index.html"));
 });
 
 app.post("/api/data", (req, res) => {
