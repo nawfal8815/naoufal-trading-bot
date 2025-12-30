@@ -1,7 +1,7 @@
 const axios = require('axios');
 const config = require('../../config/config');
 
-const API_URL = `${config.url}:${config.port}/api/data`;
+const API_URL = `${config.url}/api/data`;
 
 async function postData(data) {
   try {
