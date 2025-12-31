@@ -40,4 +40,4 @@ function sendTelegramMessage(text, options = {}) {
 }
 
 
-module.exports = { sendTelegramMessage, clearBotMessages };
+module.exports = { sendTelegramMessage };
