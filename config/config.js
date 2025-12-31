@@ -34,7 +34,11 @@ module.exports = {
 
     twelveData: {
         baseUrl: "https://api.twelvedata.com",
-        apiKey: process.env.TWELVE_DATA_KEY
+        apiKey: process.env.TWELVE_DATA_KEY,
+        apiKey2: process.env.TWELVE_DATA_KEY_SECOND,
+        apiKey3: process.env.TWELVE_DATA_KEY_THIRD,
+        apiKey4: process.env.TWELVE_DATA_KEY_FOURTH,
+        apiKey5: process.env.TWELVE_DATA_KEY_FIFTH
     },
 
     oanda: {

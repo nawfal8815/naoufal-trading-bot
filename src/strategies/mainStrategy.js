@@ -29,7 +29,7 @@ async function runStrategy() {
     }, delay);
 
     //check if its weekend
-    if (await checkIfWeekend()){
+    if (await checkIfWeekend()) {
         console.log("Weekend — no trading 🚫");
         await sleepUntilNextAsiaSession();
         strategyRunning = false;
@@ -78,7 +78,7 @@ async function runStrategy() {
         // Check news first
         const events = await getNews();
         const newsRules = await newsDecision(events);
-        if (newsRules === 0 || !newsRules.skipDay) {
+        if (newsRules === 0 || (!newsRules.skipDay && newsRules.blockTimes.length === 0)) {
             console.log("No significant news events today, proceeding with strategy.");
         } else if (newsRules != 0 && newsRules.skipDay) {
             console.log("⚠️ High impact news today, skipping trading for the day.");
@@ -90,8 +90,7 @@ async function runStrategy() {
             await sleepUntilNextAsiaSession();
             return; // restart fresh next day
         } else if (newsRules.blockTimes.length > 0) {
-            const blocked = "";
-            newsRules.blockTimes.forEach(b => blocked = blocked + ", " + b);
+            const blocked = newsRules.blockTimes.join(", ");
             console.log("⚠️ High impact news today at " + blocked);
         }
         await postData({

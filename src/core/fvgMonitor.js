@@ -14,13 +14,13 @@ async function monitorFVG({ fvg, signal}) {
 
     // ---- PHASE 1: wait for touch ----
     while (true) {
-        const priceData = await isPriceInFVG(fvg);
+        const priceData = await isPriceInFVG(fvg, signal);
         if (priceData.inFVG) {
-            console.log("🎯 Price entered FVG:", priceData.price);
-            const rangeDetector = await isRanged(fvg, candles);
-            if (!rangeDetector) {
-                console.log("Market is not ranged, skipping trade. High risk setup...");
-            } else console.log("Market is ranged");
+            console.log("🎯 Price entered FVG:", priceData.candle);
+            // const rangeDetector = await isRanged(fvg, candles);
+            // if (!rangeDetector) {
+            //     console.log("Market is not ranged, skipping trade. High risk setup...");
+            // } else console.log("Market is ranged");
             break;
         }
 
@@ -70,7 +70,7 @@ async function monitorFVG({ fvg, signal}) {
             };
         }
 
-        await sleep(1000); // avoid tight loop
+        await sleep(60 * 1000); // avoid tight loop every 1 minute
     }
 }
 
