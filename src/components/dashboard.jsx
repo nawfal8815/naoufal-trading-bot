@@ -49,7 +49,7 @@ export default function Dashboard() {
     return (
         <div className="min-h-screen bg-gray-900 text-white p-6 space-y-6">
             <div className="flex justify-between">
-                <h1 className="text-2xl font-bold">Trading Dashboard</h1>
+                <h1 className="text-2xl font-bold">Trading BOT Dashboard</h1>
                 <div className="text-right text-sm text-gray-400">
                     <div>Server's timezone: {timezone}</div>
                     <div>Your timezone: {userTimezone}</div>

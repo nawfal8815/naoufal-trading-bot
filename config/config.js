@@ -12,7 +12,7 @@ module.exports = {
     RR: 2, // Risk to Reward ratio
     multiplyer: 100000, // for position size calculation
     daylycandles: 20,
-    candles15needed: 5000,
+    candles15needed: 4 * 24 * 3, //3 days of candles
     port: process.env.PORT,
     url: process.env.URL,
 
