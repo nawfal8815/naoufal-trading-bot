@@ -50,7 +50,7 @@ function findFVGs(candles) {
             const FVGmid = c1.low - ((c1.low - c3.high) / 2);
             fvgList.push({
                 type: "bullish",
-                createdAt: c2.datetime,
+                createdAt: c1.datetime,
                 createdIndex: i - 1,
                 gapLow: c3.high,
                 gapHigh: c1.low,
@@ -68,7 +68,7 @@ function findFVGs(candles) {
             const FVGmid = c3.low - ((c3.low - c1.high) / 2);
             fvgList.push({
                 type: "bearish",
-                createdAt: c2.datetime,
+                createdAt: c1.datetime,
                 createdIndex: i - 1,
                 gapLow: c1.high,
                 gapHigh: c3.low,
