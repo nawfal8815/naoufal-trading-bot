@@ -6,6 +6,7 @@ const { sleepUntilNextAsiaSession, msUntilNextAsiaSession } = require("../utils/
 const { sendTelegramMessage } = require("../services/telegram");
 const config = require("../../config/config");
 const { newsDecision } = require("../core/newsHandler");
+const { getNews } = require('../api/news');
 const { login, getAccount, executeTrade, scheduleStopAll } = require("../services/igMarkets");
 const { monitorTrade } = require("../core/tradeMonitor");
 const { sleep } = require("../utils/sleep");
@@ -75,7 +76,8 @@ async function runStrategy() {
     //running main strategy logic
     try {
         // Check news first
-        const newsRules = await newsDecision();
+        const events = await getNews();
+        const newsRules = await newsDecision(events);
         if (newsRules === 0 || !newsRules.skipDay) {
             console.log("No significant news events today, proceeding with strategy.");
         } else if (newsRules != 0 && newsRules.skipDay) {
@@ -87,13 +89,21 @@ async function runStrategy() {
             strategyRunning = false;
             await sleepUntilNextAsiaSession();
             return; // restart fresh next day
+        } else if (newsRules.blockTimes.length > 0) {
+            const blocked = "";
+            newsRules.blockTimes.forEach(b => blocked = blocked + ", " + b);
+            console.log("⚠️ High impact news today at " + blocked);
         }
         await postData({
             type: "news",
             timestamp: new Date().toISOString(),
             news: newsRules
         });
-
+        await postData({
+            type: "events",
+            timestamp: new Date().toISOString(),
+            events
+        });
 
         await sleep(2000); // brief pause before proceeding
 

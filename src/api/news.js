@@ -1,4 +1,5 @@
 const puppeteer = require('puppeteer');
+const { postData } = require('../server/apiClient');
 
 const getNews = async () => {
     const browser = await puppeteer.launch({
@@ -70,6 +71,5 @@ const getNews = async () => {
     await browser.close();
     return news;
 };
-
 
 module.exports = { getNews }

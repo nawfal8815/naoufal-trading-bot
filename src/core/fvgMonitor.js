@@ -34,7 +34,7 @@ async function monitorFVG({ fvg, signal}) {
             messageDisplayed = true;
         }
 
-        await sleep(2,5 * 60 * 1000); // 2,5 minute polling
+        await sleep(2.5 * 60 * 1000); // 2.5 minute polling
     }
 
     console.log("📊 Monitoring candles inside FVG...");

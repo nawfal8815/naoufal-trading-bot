@@ -1,9 +1,3 @@
-const { getNews } = require("../api/news");
-
-async function fetchTodayNews() {
-    return await getNews();
-}
-
 function classifyNews(events) {
     return events.map(event => {
         if (event.impact === "High" && event.time === "All Day") {
@@ -47,8 +41,7 @@ function buildTradingRules(classifiedEvents) {
 }
 
 
-async function newsDecision() {
-    const events = await fetchTodayNews();
+async function newsDecision(events) {
     if (events.length === 0) {
         return 0;
     }
