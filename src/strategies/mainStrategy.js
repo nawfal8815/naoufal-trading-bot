@@ -20,9 +20,6 @@ async function runStrategy() {
     if (strategyRunning) return;
     strategyRunning = true;
 
-    //clear Telegram chat
-    await clearBotMessages(config.chatId);
-
     //set the timer to auto reexecute the strategie the next day
     const delay = await msUntilNextAsiaSession();
     setTimeout(() => {

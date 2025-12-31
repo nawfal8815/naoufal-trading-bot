@@ -34,24 +34,9 @@ if (!global._telegramBot) {
 
 bot = global._telegramBot;
 
-let lastMessageIds = [];
-
 // ✅ Send message helper (safe)
 function sendTelegramMessage(text, options = {}) {
-  const msg = bot.sendMessage(config.telegram.chatId, text, options);
-  lastMessageIds.push(msg.message_id);
-  return msg;
-}
-
-async function clearBotMessages(chatId) {
-  for (const id of lastMessageIds) {
-    try {
-      await bot.deleteMessage(chatId, id);
-    } catch (err) {
-      // ignore errors
-    }
-  }
-  lastMessageIds = [];
+  return bot.sendMessage(config.telegram.chatId, text, options);
 }
 
 
