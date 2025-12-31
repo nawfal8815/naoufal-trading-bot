@@ -58,7 +58,7 @@ export default function Dashboard() {
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-6 space-y-6">
-            <div className="mx-auto w-full max-w-none lg:max-w-[60%] p-6 space-y-6">
+            <div className="mx-auto w-[100%] lg:w-full lg:max-w-[60%] p-4 sm:p-6 space-y-6">
                 <div className="flex justify-between">
                     <h1 className="text-2xl font-bold">Trading BOT Dashboard</h1>
                     <div className="text-right text-sm text-gray-400">
@@ -131,24 +131,29 @@ export default function Dashboard() {
                             {newsEvents.map((n, i) => (
                                 <div
                                     key={i}
-                                    className="grid grid-cols-[80px_60px_70px_1fr] items-center text-sm border-b border-gray-700 pb-2"
+                                    className="grid grid-cols-1 sm:grid-cols-[80px_60px_70px_1fr] gap-y-1 items-center text-sm border-b border-gray-700 pb-2"
+
                                 >
                                     {/* Time */}
+                                    <div className="sm:hidden text-xs text-gray-500">Time</div>
                                     <div className="text-gray-400">
                                         {n.time}
                                     </div>
 
                                     {/* Currency */}
+                                    <div className="sm:hidden text-xs text-gray-500">Currency</div>
                                     <div className="font-semibold text-blue-400">
                                         {n.currency}
                                     </div>
 
                                     {/* Impact */}
+                                    <div className="sm:hidden text-xs text-gray-500">Impact</div>
                                     <div className={`font-semibold ${impactColor(n.impact)}`}>
                                         {n.impact}
                                     </div>
 
                                     {/* Event */}
+                                    <div className="sm:hidden text-xs text-gray-500">Event</div>
                                     <div className="text-gray-200">
                                         {n.event}
                                     </div>
