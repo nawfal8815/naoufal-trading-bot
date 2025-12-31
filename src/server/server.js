@@ -21,11 +21,30 @@ app.use(express.static(distPath));
 
 // API routes
 app.post("/api/data", (req, res) => {
+  const incoming = req.body;
+
+  // Types that should only exist once
+  const singletonTypes = [
+    "livePrice",
+    "signal",
+    "accountDetails",
+    "fvg",
+    "timezone",
+    "news",
+    "events"
+  ];
+
+  if (singletonTypes.includes(incoming.type)) {
+    // Remove previous entry of same type
+    dataStore = dataStore.filter(d => d.type !== incoming.type);
+  }
+
   dataStore.push(req.body);
   res.status(200).json({ ok: true });
 });
 
 app.post("/api/data/candles", (req, res) => {
+  candles = [];
   candles.push(req.body);
   res.status(200).json({ ok: true });
 });
