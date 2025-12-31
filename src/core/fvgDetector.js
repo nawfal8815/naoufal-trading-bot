@@ -1,31 +1,31 @@
 const config = require("../../config/config");
 const { get15mSeriesArray } = require("../api/dataFeed");
 const { postData } = require('../server/apiClient.js');
+const { getNextAsiaSessionDate } = require('../utils/date');
 
-function isBefore2AM(datetime) {
-    // 1️⃣ Get today's date in Vilnius
-    const now = new Date();
-    const todayVilnius = now.toLocaleDateString("sv-SE", {
-        timeZone: config.timezone
-    });
+function isBeforePreviousAsiaSession(candleDatetime) {
+    const candleTime = new Date(candleDatetime.replace(" ", "T"));
 
-    // 2️⃣ Build today's 02:00 timestamp in Vilnius
-    const cutoff = new Date(`${todayVilnius}T02:00:00`);
+    // Get the next Asia session first
+    const nextAsiaSession = new Date(getNextAsiaSessionDate());
 
-    // 3️⃣ Convert candle datetime safely to Date
-    const candleTime = new Date(datetime.replace(" ", "T"));
+    // Subtract 1 day to get the previous session
+    const previousAsiaSession = new Date(nextAsiaSession);
+    previousAsiaSession.setDate(previousAsiaSession.getDate() - 1);
 
-    return candleTime < cutoff;
+    return candleTime < previousAsiaSession;
 }
 
-function isFullyCompleted (candleTime) {
+
+
+function isFullyCompleted(candleTime) {
     const candleDate = new Date(candleTime);
     const now = new Date();
-    
+
     // Calculate time difference in milliseconds
     const timeDiffMs = now - candleDate;
     const fifteenMinutesMs = 15 * 60 * 1000; // 15 minutes in milliseconds
-    
+
     // Check if 15 minutes have passed
     return timeDiffMs >= fifteenMinutesMs;
 }
@@ -41,7 +41,7 @@ function findFVGs(candles) {
         const c3 = candles[i];     // oldest
 
         // Bullish FVG
-        if (c1.low > c3.high && isBefore2AM(c2.datetime) && isFullyCompleted(c3.datetime)) {
+        if (c1.low > c3.high && isBeforePreviousAsiaSession(c2.datetime) && isFullyCompleted(c3.datetime)) {
             const gapSize = c1.low - c3.high;
 
             // ❌ reject fake gaps
@@ -59,7 +59,7 @@ function findFVGs(candles) {
         }
 
         // Bearish FVG
-        if (c1.high < c3.low && isBefore2AM(c2.datetime) && isFullyCompleted(c3.datetime)) {
+        if (c1.high < c3.low && isBeforePreviousAsiaSession(c2.datetime) && isFullyCompleted(c3.datetime)) {
             const gapSize = c3.low - c1.high;
 
             // ❌ reject fake gaps
@@ -95,7 +95,7 @@ function isVirginFVG(fvg, candles, signal) {
                 return null;
             }
 
-            if (signal.targetValid){
+            if (signal.targetValid) {
                 if (signal.target < c.high) signal.targetValid = false;
             }
 
@@ -112,7 +112,7 @@ function isVirginFVG(fvg, candles, signal) {
                 return null;
             }
 
-            if (signal.targetValid){
+            if (signal.targetValid) {
                 if (signal.target > c.low) signal.targetValid = false;
             }
 
@@ -150,7 +150,7 @@ async function findClosestVirginFVG(signal) {
     const fvgs = findFVGs(candles);
     const virgin = fvgs.map(f => isVirginFVG(f, candles, signal)).filter(Boolean);
     if (virgin.length === 0) return null;
-    
+
     // newest first (index 0 = newest candle)
     if (signal.potential === "buy") return virgin.find(f => f.type === "bullish") || null;
     if (signal.potential === "sell") return virgin.find(f => f.type === "bearish") || null;
