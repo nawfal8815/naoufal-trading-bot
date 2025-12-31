@@ -5,7 +5,7 @@ const { timeToMinutes } = require("../utils/date");
 async function getEntryData (fvg, candle, bias) {
     if (bias === "buy") {
         const SL = fvg.gapLow < candle.low ? fvg.gapLow : candle.low;
-        const POSITION_SIZE = config.risk.moneyAtRisk / (candle.close - SL) * config.multiplyer;
+        const POSITION_SIZE = config.risk.moneyAtRisk / ((candle.close - SL) * config.multiplyer);
         return {
             entryPrice: candle.close,
             sl: SL,
@@ -14,7 +14,7 @@ async function getEntryData (fvg, candle, bias) {
         };
     } else if (bias === "sell") {
         const SL = fvg.gapHigh > candle.high ? fvg.gapHigh : candle.high;
-        const POSITION_SIZE = config.risk.moneyAtRisk / (SL - candle.close) * config.multiplyer;
+        const POSITION_SIZE = config.risk.moneyAtRisk / ((SL - candle.close) * config.multiplyer);
         return {
             entryPrice: candle.close,
             sl: SL,

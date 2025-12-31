@@ -15,6 +15,7 @@ module.exports = {
     candles15needed: 4 * 24 * 3, //3 days of candles
     port: process.env.PORT,
     url: process.env.URL,
+    tradeQuality: 100,
 
     risk: {
         perTrade: 0.01, // 1%

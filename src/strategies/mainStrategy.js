@@ -3,7 +3,7 @@ const { getEntryData, confirmationTimeChecker } = require("../core/riskManager")
 const signalBuilder = require("../core/signalBuilder");
 const { monitorFVG } = require("../core/fvgMonitor");
 const { sleepUntilNextAsiaSession, msUntilNextAsiaSession } = require("../utils/sleepUntilNextAsiaSession");
-const { sendTelegramMessage } = require("../services/telegram");
+const { sendTelegramMessage, clearBotMessages } = require("../services/telegram");
 const config = require("../../config/config");
 const { newsDecision } = require("../core/newsHandler");
 const { getNews } = require('../api/news');
@@ -19,6 +19,9 @@ async function runStrategy() {
 
     if (strategyRunning) return;
     strategyRunning = true;
+
+    //clear Telegram chat
+    await clearBotMessages(config.chatId);
 
     //set the timer to auto reexecute the strategie the next day
     const delay = await msUntilNextAsiaSession();
@@ -66,8 +69,8 @@ async function runStrategy() {
         console.error("❌ Login failed", err.response?.data || err.message);
         strategyRunning = false;
         // retry after short delay
-        console.log("Retrying strategy in 30 seconds...");
-        await sleep(30000);
+        console.log("Retrying strategy in 1 minute...");
+        await sleep(60000);
         return;
     }
 
@@ -87,12 +90,14 @@ async function runStrategy() {
                 High impact news events detected for ${config.symbol}. No trades will be taken today.
             `, { parse_mode: "Markdown" });
             strategyRunning = false;
+            config.tradeQuality -= 50;
             await sleepUntilNextAsiaSession();
             return; // restart fresh next day
         } else if (newsRules.blockTimes.length > 0) {
+            config.tradeQuality -= 20;
             const blocked = newsRules.blockTimes.join(", ");
             console.log("⚠️ High impact news today at " + blocked);
-        }
+        } else if (newsRules.warnTimes.length > 0) config.tradeQuality -= 10;
         await postData({
             type: "news",
             timestamp: new Date().toISOString(),
@@ -110,9 +115,9 @@ async function runStrategy() {
         //get todays signal
         const signal = await signalBuilder();
         if (!signal || signal.potential === "none") {
-            console.log("No valid signal, retrying in 10 secs...");
+            console.log("No valid signal, retrying in 30 secs...");
             strategyRunning = false;
-            await sleep(10000);
+            await sleep(30000);
             return;
         }
 
@@ -142,6 +147,7 @@ async function runStrategy() {
             await sleepUntilNextAsiaSession();
             return;
         }
+        if (!fvg.fullVirgin) config.tradeQuality -= 10;
         await postData({
             type: "fvg",
             timestamp: new Date().toISOString(),
@@ -163,6 +169,7 @@ async function runStrategy() {
         await sleep(2000); // brief pause before proceeding
 
         //to add later: check if the market is ranged or trending before monitoring FVG
+        // 10% quality of the trade if its not ranged
         //TO DO!!
 
         //monitor FVG for confirmation
@@ -171,6 +178,11 @@ async function runStrategy() {
             signal
         });
 
+        await postData({
+            type: "percentage",
+            timestamp: new Date().toISOString(),
+            percentage: config.tradeQuality
+        });
 
         if (result.status === "confirmed") {
             if (newsRules != 0 && !confirmationTimeChecker(newsRules)) {
@@ -184,7 +196,7 @@ async function runStrategy() {
                 return; // restart fresh next day
             } else {
                 //place trade
-                const entryData = getEntryData(result.fvg, result.entryCandle, signal.potential);
+                const entryData = await getEntryData(result.fvg, result.entryCandle, signal.potential);
                 console.log("Placing trade with entry data:", entryData);
 
                 sendTelegramMessage(

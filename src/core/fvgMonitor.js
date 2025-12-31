@@ -3,8 +3,9 @@ const { sleep } = require('../utils/sleep');
 const { fetchLatestClosedCandle } = require('../api/dataFeed');
 const { is15MinBoundary } = require('../utils/date');
 const { isRanged } = require("../core/RangeDetector");
+const { postData } = require('../server/apiClient');
 
-async function monitorFVG({ fvg, signal}) {
+async function monitorFVG({ fvg, signal }) {
     if (!fvg) return { status: "expired" };
     let messageDisplayed = false;
     console.log("⏳ Waiting for price to enter FVG...");
@@ -53,6 +54,12 @@ async function monitorFVG({ fvg, signal}) {
             await sleep(5000);
             continue;
         }
+
+        await postData({
+            type: "livePrice",
+            timestamp: new Date().toISOString(),
+            price: candle.close
+        });
 
         // ❌ FVG invalidation
         if (isFVGExpired(candle, fvg, signal.potential)) {
