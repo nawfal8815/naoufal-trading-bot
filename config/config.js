@@ -16,6 +16,7 @@ module.exports = {
     port: process.env.PORT,
     url: process.env.URL,
     tradeQuality: 100,
+    pips: 0.001,
 
     risk: {
         perTrade: 0.01, // 1%

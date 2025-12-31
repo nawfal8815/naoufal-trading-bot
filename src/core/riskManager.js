@@ -2,9 +2,14 @@ const config = require("../../config/config");
 const { sendTelegramMessage } = require("../services/telegram");
 const { timeToMinutes } = require("../utils/date");
 
-async function getEntryData (fvg, candle, bias) {
+async function getEntryData(fvg, candle, bias) {
     if (bias === "buy") {
-        const SL = fvg.gapLow < candle.low ? fvg.gapLow : candle.low;
+        const SLHolder = fvg.gapLow < candle.low ? fvg.gapLow : candle.low;
+        if (candle.close - SLHolder < config.pips) {
+            const SL = candle.close - config.pips;
+        } else {
+            const SL = SLHolder;
+        }
         const POSITION_SIZE = config.risk.moneyAtRisk / ((candle.close - SL) * config.multiplyer);
         return {
             entryPrice: candle.close,
@@ -13,7 +18,12 @@ async function getEntryData (fvg, candle, bias) {
             positionSize: POSITION_SIZE
         };
     } else if (bias === "sell") {
-        const SL = fvg.gapHigh > candle.high ? fvg.gapHigh : candle.high;
+        const SLHolder = fvg.gapHigh > candle.high ? fvg.gapHigh : candle.high;
+        if (SLHolder - candle.close < config.pips) {
+            const SL = candle.close + config.pips;
+        } else {
+            const SL = SLHolder;
+        }
         const POSITION_SIZE = config.risk.moneyAtRisk / ((SL - candle.close) * config.multiplyer);
         return {
             entryPrice: candle.close,
