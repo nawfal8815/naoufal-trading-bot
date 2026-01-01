@@ -169,17 +169,19 @@ async function runStrategy() {
         // 10% quality of the trade if its not ranged
         //TO DO!!
 
+        await postData({
+            type: "percentage",
+            timestamp: new Date().toISOString(),
+            percentage: config.tradeQuality
+        });
+
         //monitor FVG for confirmation
         const result = await monitorFVG({
             fvg,
             signal
         });
 
-        await postData({
-            type: "percentage",
-            timestamp: new Date().toISOString(),
-            percentage: config.tradeQuality
-        });
+        
 
         if (result.status === "confirmed") {
             if (newsRules != 0 && !confirmationTimeChecker(newsRules)) {

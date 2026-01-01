@@ -225,6 +225,7 @@ export default function Dashboard() {
                                     }`}>
                                     {fvg.type.toUpperCase()}
                                 </div>
+                                <p className="text-sm text-gray-300">Created at: {fvg.createdAt}</p>
                                 <p className="text-sm text-gray-300">High: {fvg.gapHigh}</p>
                                 <p className="text-sm text-gray-300">Low: {fvg.gapLow}</p>
                                 {!fvg.fullVirgin ? <p className="text-sm text-gray-300">Mid: {fvg.gapMid}</p> : null}
