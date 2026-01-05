@@ -16,3 +16,5 @@ logs/
 
 # dist folder
 dist/
+*.local
+serviceAccount.json

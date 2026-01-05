@@ -59,7 +59,7 @@ app.get("/api/data/candles", (req, res) => {
 
 // ✅ SPA fallback for Express 5 + path-to-regexp 8
 // This must go **after** API routes
-app.get("/", (req, res) => {
+app.get(/.*/, (req, res) => {
   res.sendFile(path.join(distPath, "index.html"));
 });
 

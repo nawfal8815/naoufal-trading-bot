@@ -12,6 +12,8 @@ const { monitorTrade } = require("../core/tradeMonitor");
 const { sleep } = require("../utils/sleep");
 const { postData } = require("../server/apiClient");
 const { setTimeZone, checkIfWeekend } = require("../utils/date");
+const { initCollections } = require('../../firebase/initCollections');
+const { saveLog, saveDailyInfo, saveNews, savePosition } = require('../../firebase/queries');
 
 let strategyRunning = false; // prevent overlapping runs
 
@@ -20,17 +22,22 @@ async function runStrategy() {
     if (strategyRunning) return;
     strategyRunning = true;
 
+    //init collections
+    await initCollections();
+
     //set the timer to auto reexecute the strategie the next day
     const delay = await msUntilNextAsiaSession();
     setTimeout(() => {
         console.log("🌅 New Asia session... Restarting the strategy");
+        saveLog("🌅 New Asia session... Restarting the strategy");
         strategyRunning = false;
         return;
     }, delay);
 
     //check if its weekend
     if (await checkIfWeekend()) {
-        console.log("Weekend — no trading 🚫");
+    console.log("Weekend — no trading 🚫");
+    await saveLog("Weekend — no trading 🚫");
         await sleepUntilNextAsiaSession();
         strategyRunning = false;
         return;
@@ -43,30 +50,29 @@ async function runStrategy() {
             type: "timezone",
             timezone: config.timezone
         });
-    } else console.log("❌ Error posting the timezone");
+    } else {
+        console.log("❌ Error posting the timezone");
+        await saveLog("❌ Error posting the timezone");
+        
+    }
+
 
     //login to broker
     try {
         await login();
         const account = await getAccount(config.igMarkets.accountID);
         console.log("Account Balance:", account.balance.balance);
-        const moneyAtRisk = config.risk.perTrade * account.balance.balance;
-        config.risk.moneyAtRisk = moneyAtRisk;
+        await saveLog("Account Balance:", account.balance.balance);
+        config.risk.moneyAtRisk = config.risk.perTrade * account.balance.balance;
         console.log(`💰 Money at Risk per Trade: ${config.risk.moneyAtRisk}`);
-        await postData({
-            type: "accountDetails",
-            timestamp: new Date().toISOString(),
-            account: {
-                accountID: account.accountId,
-                balance: account.balance.balance,
-                moneyAtRisk: config.risk.moneyAtRisk
-            }
-        });
+        await saveLog(`💰 Money at Risk per Trade: ${config.risk.moneyAtRisk}`);
     } catch (err) {
         console.error("❌ Login failed", err.response?.data || err.message);
+        await saveLog("❌ Login failed", err.response?.data || err.message);
         strategyRunning = false;
         // retry after short delay
         console.log("Retrying strategy in 1 minute...");
+        saveLog("Retrying strategy in 1 minute...");
         await sleep(60000);
         return;
     }
@@ -78,10 +84,18 @@ async function runStrategy() {
         // Check news first
         const events = await getNews();
         const newsRules = await newsDecision(events);
+
+        const newsDB = {
+            decision: newsRules.decision,
+            events: events
+        }
+        await saveNews(newsDB);
         if (newsRules === 0 || (!newsRules.skipDay && newsRules.blockTimes.length === 0)) {
             console.log("No significant news events today, proceeding with strategy.");
+            saveLog("No significant news events today, proceeding with strategy.");
         } else if (newsRules != 0 && newsRules.skipDay) {
             console.log("⚠️ High impact news today, skipping trading for the day.");
+            saveLog("⚠️ High impact news today, skipping trading for the day.");
             sendTelegramMessage(
                 `⚠️ *Trading Skipped Today*
                 High impact news events detected for ${config.symbol}. No trades will be taken today.
@@ -94,17 +108,9 @@ async function runStrategy() {
             config.tradeQuality -= 20;
             const blocked = newsRules.blockTimes.join(", ");
             console.log("⚠️ High impact news today at " + blocked);
+            saveLog("⚠️ High impact news today at " + blocked);
+
         } else if (newsRules.warnTimes.length > 0) config.tradeQuality -= 10;
-        await postData({
-            type: "news",
-            timestamp: new Date().toISOString(),
-            news: newsRules
-        });
-        await postData({
-            type: "events",
-            timestamp: new Date().toISOString(),
-            events
-        });
 
         await sleep(2000); // brief pause before proceeding
 
@@ -113,26 +119,19 @@ async function runStrategy() {
         const signal = await signalBuilder();
         if (!signal || signal.potential === "none") {
             console.log("No valid signal, retrying in 30 secs...");
+            saveLog("No valid signal, retrying in 30 secs...");
             strategyRunning = false;
             await sleep(30000);
             return;
         }
 
-        await postData({
-            type: "signal",
-            timestamp: new Date().toISOString(),
-            signal: {
-                potential: signal.potential,
-                target: signal.target,
-                targetValid: signal.targetValid
-            }
-        });
-
         sendTelegramMessage(
             `📈 *New Signal Detected! ${config.symbol}*
             Potential: ${signal.potential}
         `, { parse_mode: "Markdown" });
+        logs
         console.log("Final Signal:", signal.potential);
+        await saveLog("Final Signal:", signal.potential);
 
         await sleep(2000); // brief pause before proceeding
 
@@ -140,16 +139,15 @@ async function runStrategy() {
         const fvg = await findClosestVirginFVG(signal);
         if (!fvg) {
             console.log("No virgin FVG found, restarting strategy the next day...");
+            saveLog("No virgin FVG found, restarting strategy the next day...");
             strategyRunning = false;
             await sleepUntilNextAsiaSession();
             return;
         }
+
         if (!fvg.fullVirgin) config.tradeQuality -= 10;
-        await postData({
-            type: "fvg",
-            timestamp: new Date().toISOString(),
-            fvg: fvg
-        });
+
+
 
         sendTelegramMessage(
             `📊 *Closest Virgin FVG*
@@ -162,6 +160,7 @@ async function runStrategy() {
             { parse_mode: "Markdown" }
         );
         console.log("Closest Virgin FVG for signal:", fvg);
+        await saveLog("Closest Virgin FVG for signal:", fvg);
 
         await sleep(2000); // brief pause before proceeding
 
@@ -169,11 +168,19 @@ async function runStrategy() {
         // 10% quality of the trade if its not ranged
         //TO DO!!
 
-        await postData({
-            type: "percentage",
-            timestamp: new Date().toISOString(),
-            percentage: config.tradeQuality
-        });
+        const dailyInfoDB = {
+            bias: signal.potential,
+            quality: config.tradeQuality,
+            target: signal.target,
+            fvg: {
+                direction: fvg.type,
+                gapHigh: fvg.gapHigh,
+                gapLow: fvg.gapLow,
+                gapMid: fvg.gapMid,
+                fullVirgin: fvg.fullVirgin ? "Full" : "50%"
+            }
+        }
+        await saveDailyInfo(dailyInfoDB);
 
         //monitor FVG for confirmation
         const result = await monitorFVG({
@@ -181,7 +188,7 @@ async function runStrategy() {
             signal
         });
 
-        
+
 
         if (result.status === "confirmed") {
             if (newsRules != 0 && !confirmationTimeChecker(newsRules)) {
@@ -190,6 +197,7 @@ async function runStrategy() {
                     Trade cancelled due to high-impact news events.
                     `, { parse_mode: "Markdown" });
                 console.log("Trade cancelled due to news impact.");
+                await saveLog("Trade cancelled due to news impact.");
                 strategyRunning = false;
                 await sleepUntilNextAsiaSession();
                 return; // restart fresh next day
@@ -197,6 +205,7 @@ async function runStrategy() {
                 //place trade
                 const entryData = await getEntryData(result.fvg, result.entryCandle, signal.potential);
                 console.log("Placing trade with entry data:", entryData);
+                await saveLog("Placing trade with entry data:", entryData);
 
                 sendTelegramMessage(
                     `🚀 *Trade Confirmed! ${config.symbol}*
@@ -208,40 +217,40 @@ async function runStrategy() {
                     `, { parse_mode: "Markdown" });
 
                 await executeTrade(
-                    config.igMarkets.accountID,
                     "CS.D.EURUSD.CFD.IP",
                     signal.potential === "buy" ? "BUY" : "SELL",
                     entryData.positionSize,
                     entryData.sl,
                     entryData.tp
                 );
-                await postData({
-                    type: "executedTrade",
-                    timestamp: new Date().toISOString(),
-                    trade: {
-                        direction: signal.potential,
-                        entryPrice: entryData.entryPrice,
-                        stopLoss: entryData.sl,
-                        takeProfit: entryData.tp,
-                        positionSize: entryData.positionSize,
-                        epic: "CS.D.EURUSD.CFD.IP" // Hardcoded for now, can be passed later
-                    }
-                });
+
+                const positionDB = {
+                    direction: signal.potential,
+                    entryPrice: entryData.entryPrice,
+                    stopLoss: entryData.sl,
+                    takeProfit: entryData.tp,
+                    positionSize: entryData.positionSize,
+                    epic: "CS.D.EURUSD.CFD.IP" // Hardcoded for now, can be passed later
+                }
+                await savePosition(positionDB);
 
                 monitorTrade(entryData.takeProfit, entryData.stopLoss, signal.potential);
                 scheduleStopAll();
                 console.log("Trade executed successfully. Strategy cycle complete for the day.");
+                await saveLog("Trade executed successfully. Strategy cycle complete for the day.");
                 strategyRunning = false;
                 await sleepUntilNextAsiaSession();
                 return; // restart fresh next day
             }
         } if (result.status === "expired-day") {
             console.log("❌ Day expired. Waiting until next session...");
+            saveLog("❌ Day expired. Waiting until next session...");
             strategyRunning = false;
             await sleepUntilNextAsiaSession();
             return // restart fresh next day
         } else {
             console.log("FVG expired or invalidated. Restarting strategy...");
+            saveLog("FVG expired or invalidated. Restarting strategy...");
             strategyRunning = false;
             return;
         }
@@ -251,6 +260,7 @@ async function runStrategy() {
         strategyRunning = false;
         // retry after short delay
         console.log("Retrying strategy in 30 seconds...");
+        saveLog("Retrying strategy in 30 seconds...");
         await new Promise(r => setTimeout(r, 30000));
         return;
     } finally {

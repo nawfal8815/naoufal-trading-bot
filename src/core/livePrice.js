@@ -1,11 +1,9 @@
-const { postData } = require('../server/apiClient');
+const { saveLivePrice } = require('../../firebase/queries');
 const { fetchLatestClosedCandle } =  require('../api/dataFeed');
 
 async function isPriceInFVG(fvg, signal) {
     const candle = await fetchLatestClosedCandle();
-    await postData({
-        type: "livePrice",
-        timestamp: new Date().toISOString(),
+    await saveLivePrice({
         price: candle.close
     });
     // console.log("Current Live EUR/USD Price:", price);

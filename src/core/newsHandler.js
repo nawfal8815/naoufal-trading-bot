@@ -20,21 +20,28 @@ function buildTradingRules(classifiedEvents) {
     const rules = {
         skipDay: false,
         blockTimes: [],
-        warnTimes: []
+        warnTimes: [],
+        decision: ''
     };
 
     for (const item of classifiedEvents) {
         if (item.type === "SKIP_DAY") {
             rules.skipDay = true;
+            rules.dicision = "🚫 High impact news all day — trading disabled"
         }
 
         if (item.type === "BLOCK_TIME") {
             rules.blockTimes.push(item.event.time);
+            rules.decision = "🚫 High impact news at: ";
+            rules.blockTimes.map(t => rules.decision += t)
         }
 
         if (item.type === "WARN_TIME") {
             rules.warnTimes.push(item.event.time);
+            rules.decision = "⚠ Medium impact news — risky conditions";
         }
+
+        if (rules.decision === '') rules.decision = "✅ No high impact news"
     }
 
     return rules;

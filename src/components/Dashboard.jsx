@@ -2,9 +2,17 @@ import { useEffect, useState } from "react";
 import { api } from "../server/frontendApi";
 import "../index.css";
 import MarketCanvas from "./MarketCanvas"
+import { signOut } from "firebase/auth";
+import { auth } from "../../firebase/firebase";
+import { getLatest } from "../../firebase/queries.client";
+import UserMenu from "./UserMenu";
+// import getData from "../../firebase/queries";
+
+
 
 export default function Dashboard() {
     const [data, setData] = useState([]);
+    const [dbData, setDbData] = useState([]);
     const [candles, setCandles] = useState([]);
     const [loading, setLoading] = useState(true);
     const [userTimezone, setUserTimezone] = useState("");
@@ -12,13 +20,27 @@ export default function Dashboard() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [dashboardRes, candlesRes] = await Promise.all([
-                    api.get("/api/data"),
-                    api.get("/api/data/candles")
+                const [
+                    dailyInfo,
+                    news,
+                    livePrice,
+                    candlesRes,
+                    dashboardRes
+                ] = await Promise.all([
+                    getLatest("Daily_Info"),
+                    getLatest("News"),
+                    getLatest("Live_Price"),
+                    api.get("/api/data/candles"),
+                    api.get("/api/data")
                 ]);
 
-                setData(dashboardRes.data);
+                setDbData({
+                    dailyInfo,
+                    news,
+                    livePrice
+                });
                 setCandles(candlesRes.data[0].candles || []);
+                setData(dashboardRes.data);
             } catch (err) {
                 console.error(err);
             } finally {
@@ -27,7 +49,6 @@ export default function Dashboard() {
         };
 
         fetchData();
-
         setUserTimezone(
             Intl.DateTimeFormat().resolvedOptions().timeZone
         );
@@ -35,26 +56,77 @@ export default function Dashboard() {
 
 
     if (loading) {
-        return <div className="text-center mt-10 text-gray-300">Loading...</div>;
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#0b0f14]">
+                <div className="text-gray-300 text-lg font-semibold tracking-wide">
+                    Loading...
+                </div>
+            </div>
+        );
     }
 
     const impactColor = (impact) => {
         switch (impact) {
-            case "High": return "text-red-400";
-            case "Medium": return "text-yellow-400";
-            case "Low": return "text-green-400";
+            case "High": return "text-rose-400";
+            case "Medium": return "text-amber-400";
+            case "Low": return "text-teal-400";
             default: return "text-gray-400";
         }
     };
 
+    const newsDecisionStyle = (decision) => {
+        if (!decision) return "text-gray-400";
+
+        if (decision.includes("High impact") && decision.includes("disabled")) {
+            return "text-rose-400";
+        }
+
+        if (decision.includes("High impact")) {
+            return "text-rose-400";
+        }
+
+        if (decision.includes("Medium impact")) {
+            return "text-amber-400";
+        }
+
+        if (decision.includes("No high impact")) {
+            return "text-teal-400";
+        }
+
+        return "text-gray-400";
+    };
+
+
     const account = data.find(d => d.type === "accountDetails")?.account;
-    const signal = data.find(d => d.type === "signal")?.signal;
-    const news = data.find(d => d.type === "news")?.news;
     const timezone = data.find(d => d.type === "timezone")?.timezone;
-    const fvg = data.find(d => d.type === "fvg")?.fvg;
-    const newsEvents = data.find(d => d.type === "events")?.events;
-    const percentage = data.find(d => d.type === "percentage")?.percentage;
-    const livePrice = data.find(d => d.type === "livePrice");
+
+    const dailyInfo = dbData?.dailyInfo;
+    const newsDoc = dbData?.news;
+    const livePriceDoc = dbData?.livePrice;
+
+    const signal = dailyInfo?.bias
+        ? { potential: dailyInfo.bias }
+        : null;
+
+    const percentage = dailyInfo?.tradeQuality ?? null;
+    const tradeGrade =
+        percentage >= 80 ? "A+" :
+            percentage >= 70 ? "A" :
+                percentage >= 60 ? "B" :
+                    percentage >= 50 ? "C" : "D";
+
+    const fvg = dailyInfo?.fvg ?? null;
+
+    const news = newsDoc?.decision ?? null;
+
+    const newsEvents = newsDoc?.events ?? [];
+
+    const livePrice = livePriceDoc
+        ? {
+            price: livePriceDoc.price,
+            createdAt: livePriceDoc.createdAt?.toDate()
+        }
+        : null;
 
     if (!account || !signal || !news) {
         return <div className="text-center mt-10 text-gray-400">No data available</div>;
@@ -65,14 +137,27 @@ export default function Dashboard() {
             <div className="mx-auto w-full lg:max-w-[60%] space-y-6">
 
                 {/* HEADER */}
-                <div className="flex justify-between items-start border-b border-[#1f2933] pb-4">
+                <div className="
+                    grid
+                    grid-cols-[1fr_auto]
+                    gap-y-3
+                    border-b border-[#1f2933] pb-4
+                    sm:grid-cols-[1fr_auto_auto]
+                    sm:items-start
+                ">
                     <h1 className="text-2xl font-extrabold tracking-wide">
                         Trading BOT Dashboard
                     </h1>
-                    <div className="text-right text-xs font-medium text-gray-400">
+
+                    <div className="text-xs font-medium text-gray-400 sm:text-right">
                         <div>Server TZ: {timezone}</div>
                         <div>Your TZ: {userTimezone}</div>
                     </div>
+
+                    <div className="justify-self-end ml-20">
+                        <UserMenu />
+                    </div>
+
                 </div>
 
                 {/* ACCOUNT / BIAS / QUALITY */}
@@ -91,10 +176,10 @@ export default function Dashboard() {
                         <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-2">
                             Daily Bias
                         </h3>
-                        <div className={`text-4xl font-extrabold ${signal.potential === "buy"
-                            ? "text-green-400"
-                            : signal.potential === "sell"
-                                ? "text-red-400"
+                        <div className={`text-4xl font-extrabold ${signal.potential.toLowerCase() === "buy"
+                            ? "text-teal-400"
+                            : signal.potential.toLowerCase() === "sell"
+                                ? "text-rose-400"
                                 : "text-gray-400"
                             }`}>
                             {signal.potential.toUpperCase()}
@@ -103,18 +188,28 @@ export default function Dashboard() {
 
                     {percentage !== undefined && (
                         <div>
-                            <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-2">
+                            <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-3">
                                 Trade Quality
                             </h3>
-                            <div className="text-4xl font-extrabold text-green-400">
-                                {percentage}%
-                            </div>
-                            <div className="w-full bg-[#1f2933] rounded-full h-2 mt-3">
+
+                            <div className="flex items-center gap-4">
+                                {/* Ring */}
                                 <div
-                                    className="bg-green-500 h-2 rounded-full"
-                                    style={{ width: `${percentage}%` }}
-                                />
+                                    className="relative w-20 h-20 rounded-full flex items-center justify-center"
+                                    style={{
+                                        background: percentage >= 50 ? 
+                                        `conic-gradient(#2dd4bf ${percentage * 3.6}deg, #1f2933 0deg)`
+                                        : `conic-gradient(#fb7185 ${percentage * 3.6}deg, #1f2933 0deg)`
+                                    }}
+                                >
+                                    <div className="absolute w-14 h-14 rounded-full bg-[#11161d] flex items-center justify-center">
+                                        <span className="text-xl font-extrabold">
+                                            {tradeGrade}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
+
                         </div>
                     )}
                 </div>
@@ -125,28 +220,13 @@ export default function Dashboard() {
                         News Decision
                     </h2>
 
-                    {news.skipDay ? (
-                        <p className="text-red-500 font-semibold">
-                            🚫 High impact news all day — trading disabled
-                        </p>
-                    ) : news.blockTimes.length > 0 ? (
-                        <div>
-                            <p className="text-red-400 font-semibold mb-1">
-                                🚫 High impact news at:
-                            </p>
-                            <ul className="text-sm text-red-400">
-                                {news.blockTimes.map((t, i) => (
-                                    <li key={i}>• {t}</li>
-                                ))}
-                            </ul>
-                        </div>
-                    ) : news.warnTimes.length > 0 ? (
-                        <p className="text-yellow-400 font-semibold">
-                            ⚠ Medium impact news — risky conditions
+                    {news ? (
+                        <p className={`font-semibold ${newsDecisionStyle(news)}`}>
+                            {news}
                         </p>
                     ) : (
-                        <p className="text-green-400 font-semibold">
-                            ✅ No high impact news
+                        <p className="text-gray-400 font-semibold">
+                            No news data available
                         </p>
                     )}
 
@@ -207,12 +287,22 @@ export default function Dashboard() {
                                 <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-1">
                                     Live Price
                                 </h2>
-                                <div className="text-3xl font-extrabold text-green-400">
+                                <div className="text-3xl font-extrabold text-teal-400">
                                     {livePrice.price}
                                 </div>
-                                <p className="text-xs text-gray-400">
-                                    Last update: {new Date(livePrice.timestamp).toLocaleTimeString()}
-                                </p>
+                                <div className="text-xs text-gray-400">
+                                    Last update:{" "}
+                                    {livePrice.createdAt
+                                        ? livePrice.createdAt.toLocaleString(undefined, {
+                                            day: "2-digit",
+                                            month: "long",
+                                            year: "numeric",
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                            second: "2-digit"
+                                        })
+                                        : "—"}
+                                </div>
                             </div>
                         )}
 
@@ -221,7 +311,7 @@ export default function Dashboard() {
                                 <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-2">
                                     Fair Value Gap
                                 </h2>
-                                <div className={`text-2xl font-extrabold ${fvg.type === "bullish" ? "text-green-400" : "text-red-400"
+                                <div className={`text-2xl font-extrabold ${fvg.type === "bullish" ? "text-teal-400" : "text-rose-400"
                                     }`}>
                                     {fvg.type.toUpperCase()}
                                 </div>
