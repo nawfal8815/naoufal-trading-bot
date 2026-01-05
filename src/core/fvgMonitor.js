@@ -31,7 +31,7 @@ async function monitorFVG({ fvg, signal }) {
         }
 
         if (!signal.targetValid && !messageDisplayed) {
-            console.log(`🏁 ${signal.potential} Target ${signal.target} was reached today before FVG was touched: ${priceData.price}, the trade will be risky`);
+            console.log(`🏁 ${signal.potential} Target ${signal.target} was reached today before FVG was touched, the trade will be risky`);
             messageDisplayed = true;
         }
 

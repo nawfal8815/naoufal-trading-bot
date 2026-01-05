@@ -4,7 +4,7 @@ async function saveLog(data) {
     try {
         await db.collection("Logs").add({
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            Log: data.log
+            Log: data
         });
     } catch (err) {
         console.error(err);

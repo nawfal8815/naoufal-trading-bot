@@ -64,6 +64,10 @@ async function runStrategy() {
         console.log("Account Balance:", account.balance.balance);
         await saveLog("Account Balance:", account.balance.balance);
         config.risk.moneyAtRisk = config.risk.perTrade * account.balance.balance;
+        await postData({
+            type: "accountDetails",
+            account: {accountID: account.accountId, balance: account.balance.balance, moneyAtRisk: config.risk.moneyAtRisk}
+        })
         console.log(`💰 Money at Risk per Trade: ${config.risk.moneyAtRisk}`);
         await saveLog(`💰 Money at Risk per Trade: ${config.risk.moneyAtRisk}`);
     } catch (err) {
@@ -84,18 +88,14 @@ async function runStrategy() {
         // Check news first
         const events = await getNews();
         const newsRules = await newsDecision(events);
-
+        console.log(newsRules.decision);
+        await saveLog(newsRules.decision);
         const newsDB = {
             decision: newsRules.decision,
             events: events
         }
         await saveNews(newsDB);
-        if (newsRules === 0 || (!newsRules.skipDay && newsRules.blockTimes.length === 0)) {
-            console.log("No significant news events today, proceeding with strategy.");
-            saveLog("No significant news events today, proceeding with strategy.");
-        } else if (newsRules != 0 && newsRules.skipDay) {
-            console.log("⚠️ High impact news today, skipping trading for the day.");
-            saveLog("⚠️ High impact news today, skipping trading for the day.");
+        if (newsRules != 0 && newsRules.skipDay) {
             sendTelegramMessage(
                 `⚠️ *Trading Skipped Today*
                 High impact news events detected for ${config.symbol}. No trades will be taken today.
@@ -106,10 +106,6 @@ async function runStrategy() {
             return; // restart fresh next day
         } else if (newsRules.blockTimes.length > 0) {
             config.tradeQuality -= 20;
-            const blocked = newsRules.blockTimes.join(", ");
-            console.log("⚠️ High impact news today at " + blocked);
-            saveLog("⚠️ High impact news today at " + blocked);
-
         } else if (newsRules.warnTimes.length > 0) config.tradeQuality -= 10;
 
         await sleep(2000); // brief pause before proceeding
@@ -129,7 +125,6 @@ async function runStrategy() {
             `📈 *New Signal Detected! ${config.symbol}*
             Potential: ${signal.potential}
         `, { parse_mode: "Markdown" });
-        logs
         console.log("Final Signal:", signal.potential);
         await saveLog("Final Signal:", signal.potential);
 
@@ -173,11 +168,12 @@ async function runStrategy() {
             quality: config.tradeQuality,
             target: signal.target,
             fvg: {
-                direction: fvg.type,
+                type: fvg.type,
                 gapHigh: fvg.gapHigh,
                 gapLow: fvg.gapLow,
                 gapMid: fvg.gapMid,
-                fullVirgin: fvg.fullVirgin ? "Full" : "50%"
+                fullVirgin: fvg.fullVirgin ? "Full" : "50%",
+                createdIndex: fvg.createdIndex
             }
         }
         await saveDailyInfo(dailyInfoDB);

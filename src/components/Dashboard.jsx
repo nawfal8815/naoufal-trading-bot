@@ -128,9 +128,15 @@ export default function Dashboard() {
         }
         : null;
 
-    if (!account || !signal || !news) {
-        return <div className="text-center mt-10 text-gray-400">No data available</div>;
-    }
+    // if (!account || !signal || !news) {
+    //     return (
+    //         <div className="min-h-screen flex items-center justify-center bg-[#0b0f14]">
+    //             <div className="text-gray-300 text-lg font-semibold tracking-wide">
+    //                 No data available...
+    //             </div>
+    //         </div>
+    //     );
+    // }
 
     return (
         <div className="min-h-screen bg-[#0b0f14] text-gray-100 p-4 sm:p-6">
@@ -197,9 +203,9 @@ export default function Dashboard() {
                                 <div
                                     className="relative w-20 h-20 rounded-full flex items-center justify-center"
                                     style={{
-                                        background: percentage >= 50 ? 
-                                        `conic-gradient(#2dd4bf ${percentage * 3.6}deg, #1f2933 0deg)`
-                                        : `conic-gradient(#fb7185 ${percentage * 3.6}deg, #1f2933 0deg)`
+                                        background: percentage >= 50 ?
+                                            `conic-gradient(#2dd4bf ${percentage * 3.6}deg, #1f2933 0deg)`
+                                            : `conic-gradient(#fb7185 ${percentage * 3.6}deg, #1f2933 0deg)`
                                     }}
                                 >
                                     <div className="absolute w-14 h-14 rounded-full bg-[#11161d] flex items-center justify-center">
