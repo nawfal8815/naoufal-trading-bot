@@ -5,23 +5,31 @@ const { timeToMinutes } = require("../utils/date");
 async function getEntryData(fvg, candle, bias) {
     if (bias === "buy") {
         const slLevel = fvg.gapLow < candle.low ? fvg.gapLow : candle.low;
-        const SL = candle.close - slLevel < config.pips ? candle.close - config.pips : slLevel;
+        const SL = (candle.close - slLevel < config.pips ? candle.close - config.pips : slLevel);
+        const TP = (candle.close + ((candle.close - SL) * config.RR));
         const POSITION_SIZE = config.risk.moneyAtRisk / ((candle.close - SL) * config.multiplyer);
+        const ENTRY_PRICE = candle.close;
         return {
-            entryPrice: candle.close,
-            sl: SL * config.slMultipler,
-            tp: Math.floor((candle.close + ((candle.close - SL) * config.RR)) * config.slMultipler),
-            positionSize: Number(POSITION_SIZE.toFixed(3))
+            entryPrice: Number(ENTRY_PRICE * config.slMultipler.toFixed(3)),
+            sl: Number((SL * config.slMultipler).toFixed(3)),
+            tp: Number((TP * config.slMultipler).toFixed(3)),
+            positionSize: Number(POSITION_SIZE.toFixed(3)),
+            slDistance: Number(((ENTRY_PRICE - SL) * config.slMultipler).toFixed(3)),
+            tpDistance: Number(((TP - ENTRY_PRICE) * config.slMultipler).toFixed(3))
         };
     } else if (bias === "sell") {
         const slLevel = fvg.gapHigh > candle.high ? fvg.gapHigh : candle.high;
-        const SL = slLevel - candle.close < config.pips ? candle.close + config.pips : slLevel;
-        const POSITION_SIZE = config.risk.moneyAtRisk / ((SL - candle.close) * config.multiplyer);
+        const SL = (slLevel - candle.close < config.pips ? candle.close + config.pips : slLevel);
+        const TP = (candle.close - ((SL - candle.close) * config.RR));
+        const POSITION_SIZE = Number(config.risk.moneyAtRisk / ((SL - candle.close) * config.multiplyer).toFixed(3));
+        const ENTRY_PRICE = candle.close;
         return {
-            entryPrice: candle.close,
-            sl: SL * config.slMultipler,
-            tp: (candle.close - ((SL - candle.close) * config.RR)) * config.slMultipler,
-            positionSize: Number(POSITION_SIZE.toFixed(3))
+            entryPrice: Number(ENTRY_PRICE * config.slMultipler.toFixed(3)),
+            sl: Number((SL * config.slMultipler).toFixed(3)),
+            tp: Number((TP * config.slMultipler).toFixed(3)),
+            positionSize: Number(POSITION_SIZE.toFixed(3)),
+            slDistance: Number(((SL - ENTRY_PRICE) * config.slMultipler).toFixed(3)),
+            tpDistance: Number(((ENTRY_PRICE - TP) * config.slMultipler).toFixed(3))
         };
     }
 }

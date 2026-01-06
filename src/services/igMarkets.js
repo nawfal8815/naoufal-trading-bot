@@ -205,6 +205,42 @@ async function confirmDeal(dealReference) {
     return res.data;
 }
 
+
+/* -------------------- TEST (REMOVE IN PROD) -------------------- */
+
+(async () => {
+    const signal = { potential: "buy" }
+    const fvg = {
+        type: 'bullish',
+        createdAt: '2026-01-05 16:00:00',
+        createdIndex: 83,
+        gapLow: 1.16989,
+        gapHigh: 1.17031,
+        gapMid: 1.1701000000000001,
+        fullVirgin: false
+    }
+    const candle = {
+        datetime: '2026-01-06 12:30:00',
+        open: 1.17071,
+        high: 1.17089,
+        low: 1.17002,
+        close: 1.17010
+    }
+    await login();
+    const dataEntry = await getEntryData(fvg, candle, signal.potential);
+    console.log(dataEntry);
+    return;
+    await executeTrade(
+        "CS.D.EURUSD.CFD.IP",
+        "SELL",
+        dataEntry.positionSize,
+        dataEntry.tp,
+        dataEntry.sl
+    );
+    await sleep(1000 * 10);
+    await stopAllTrades();
+})();
+
 /* -------------------- EXPORTS -------------------- */
 
 module.exports = {
