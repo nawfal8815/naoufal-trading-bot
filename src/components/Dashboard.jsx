@@ -18,41 +18,62 @@ export default function Dashboard() {
     const [userTimezone, setUserTimezone] = useState("");
 
     useEffect(() => {
-        const fetchData = async () => {
+        let intervalId;
+
+        const fetchDbData = async () => {
             try {
-                const [
-                    dailyInfo,
-                    news,
-                    livePrice,
-                    candlesRes,
-                    dashboardRes
-                ] = await Promise.all([
+                const [dailyInfo, news, livePrice] = await Promise.all([
                     getLatest("Daily_Info"),
                     getLatest("News"),
-                    getLatest("Live_Price"),
+                    getLatest("Live_Price")
+                ]);
+
+                setDbData({ dailyInfo, news, livePrice });
+            } catch (err) {
+                setDbData([]);
+                console.error("DB fetch failed:", err);
+            }
+        };
+
+        const fetchApiData = async () => {
+            try {
+                const [candlesRes, dashboardRes] = await Promise.all([
                     api.get("/api/data/candles"),
                     api.get("/api/data")
                 ]);
 
-                setDbData({
-                    dailyInfo,
-                    news,
-                    livePrice
-                });
-                setCandles(candlesRes.data[0].candles || []);
-                setData(dashboardRes.data);
+                setCandles(candlesRes?.data[0]?.candles || []);
+                setData(dashboardRes?.data || null);
             } catch (err) {
-                console.error(err);
+                setCandles([]);
+                setData([]);
+                console.error("API fetch failed:", err);
+            }
+        };
+
+        const init = async () => {
+            try {
+                await Promise.allSettled([
+                    fetchDbData(),
+                    fetchApiData()
+                ]);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchData();
+        init();
+
+        intervalId = setInterval(init, 60 * 1000);
+
         setUserTimezone(
             Intl.DateTimeFormat().resolvedOptions().timeZone
         );
+
+        return () => clearInterval(intervalId);
     }, []);
+
+
 
 
     if (loading) {
@@ -96,10 +117,60 @@ export default function Dashboard() {
         return "text-gray-400";
     };
 
+    const getOffsetDifference = (serverOffset, userOffset) => {
+        if (
+            typeof serverOffset !== "number" ||
+            typeof userOffset !== "number"
+        ) {
+            return 0;
+        }
+
+        // hours to ADD to server time to get user time
+        return (serverOffset - userOffset) / 60;
+    };
+
+
+    // Parse a time string like "10:00am" or "4:30pm" into hours and minutes
+    function parseTimeString(timeStr) {
+        if (!timeStr || timeStr.toLowerCase() === "all day") return null;
+
+        const [time, modifier] = timeStr.match(/(\d{1,2}:\d{2}|\d{1,2})(am|pm)/i).slice(1);
+        let [hours, minutes] = time.split(":").map(Number);
+        if (!minutes) minutes = 0;
+
+        if (modifier.toLowerCase() === "pm" && hours < 12) hours += 12;
+        if (modifier.toLowerCase() === "am" && hours === 12) hours = 0;
+
+        return { hours, minutes };
+    }
+
+    // Convert hours and minutes back to a 12-hour string
+    function formatTime(hours, minutes) {
+        const modifier = hours >= 12 ? "pm" : "am";
+        let adjustedHours = hours % 12;
+        if (adjustedHours === 0) adjustedHours = 12;
+        return `${adjustedHours}:${minutes.toString().padStart(2, "0")}${modifier}`;
+    }
+
+    // Adjust a time string by a number of hours
+    function adjustTimeString(timeStr, offsetHours) {
+        const parsed = parseTimeString(timeStr);
+        if (!parsed) return timeStr; // keep "All Day" as-is
+
+        let newHours = parsed.hours + offsetHours;
+        console.log(newHours);
+
+        // Handle wrapping over 24h
+        if (newHours >= 24) newHours -= 24;
+        if (newHours < 0) newHours += 24;
+        return formatTime(newHours, parsed.minutes);
+    }
+
+
 
     const account = data.find(d => d.type === "accountDetails")?.account;
     const timezone = data.find(d => d.type === "timezone")?.timezone;
-
+    const dbOffsetMinutes = data.find(d => d.type === "timezone")?.offset;
     const dailyInfo = dbData?.dailyInfo;
     const newsDoc = dbData?.news;
     const livePriceDoc = dbData?.livePrice;
@@ -120,6 +191,22 @@ export default function Dashboard() {
     const news = newsDoc?.decision ?? null;
 
     const newsEvents = newsDoc?.events ?? [];
+    const userOffsetMinutes = new Date().getTimezoneOffset();
+    const timeZoneDifference = getOffsetDifference(dbOffsetMinutes, userOffsetMinutes);
+    const adjustedEvents = newsEvents.map((event) => {
+        // Only adjust if timezone difference exists
+        const newTime = timeZoneDifference !== 0
+            ? adjustTimeString(event.time, timeZoneDifference) // subtract because userOffset < serverOffset
+            : event.time;
+
+        return {
+            ...event,
+            time: newTime
+        };
+    });
+
+
+
 
     const livePrice = livePriceDoc
         ? {
@@ -128,15 +215,15 @@ export default function Dashboard() {
         }
         : null;
 
-    // if (!account || !signal || !news) {
-    //     return (
-    //         <div className="min-h-screen flex items-center justify-center bg-[#0b0f14]">
-    //             <div className="text-gray-300 text-lg font-semibold tracking-wide">
-    //                 No data available...
-    //             </div>
-    //         </div>
-    //     );
-    // }
+    if (!account && !signal && !news && !candles) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#0b0f14]">
+                <div className="text-gray-300 text-lg font-semibold tracking-wide">
+                    No data available...
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[#0b0f14] text-gray-100 p-4 sm:p-6">
@@ -152,11 +239,11 @@ export default function Dashboard() {
                     sm:items-start
                 ">
                     <h1 className="text-2xl font-extrabold tracking-wide">
-                        Trading BOT Dashboard
+                        Dashboard
                     </h1>
 
                     <div className="text-xs font-medium text-gray-400 sm:text-right">
-                        <div>Server TZ: {timezone}</div>
+                        <div>Server TZ: {timezone ? timezone : "No timezone data..."}</div>
                         <div>Your TZ: {userTimezone}</div>
                     </div>
 
@@ -173,26 +260,34 @@ export default function Dashboard() {
                         <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-2">
                             Account
                         </h3>
-                        <p>ID: <span className="font-semibold">{account.accountID}</span></p>
-                        <p>Balance: <span className="font-semibold">${account.balance}</span></p>
-                        <p>Risk: <span className="font-semibold">${account.moneyAtRisk}</span></p>
+                        {account?.accountID ? (
+                            <div>
+                                <p>ID: <span className="font-semibold">{account.accountID}</span></p>
+                                <p>Balance: <span className="font-semibold">${account.balance}</span></p>
+                                <p>Risk: <span className="font-semibold">${account.moneyAtRisk}</span></p>
+                            </div>
+                        ) : <p className="font-semibold">No account Data...</p>}
                     </div>
 
                     <div>
                         <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-2">
                             Daily Bias
                         </h3>
-                        <div className={`text-4xl font-extrabold ${signal.potential.toLowerCase() === "buy"
-                            ? "text-teal-400"
-                            : signal.potential.toLowerCase() === "sell"
-                                ? "text-rose-400"
-                                : "text-gray-400"
-                            }`}>
-                            {signal.potential.toUpperCase()}
-                        </div>
+                        {signal?.potential ? (
+                            <div className={`text-4xl font-extrabold ${signal.potential.toLowerCase() === "buy"
+                                ? "text-teal-400"
+                                : signal.potential.toLowerCase() === "sell"
+                                    ? "text-rose-400"
+                                    : "text-gray-400"
+                                }`}>
+                                {signal.potential.toUpperCase()}
+                            </div>
+                        ) : <div className="text-1xl font-extrabold">
+                            No signal data...
+                        </div>}
                     </div>
 
-                    {percentage !== undefined && (
+                    {percentage ? (
                         <div>
                             <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-3">
                                 Trade Quality
@@ -203,7 +298,7 @@ export default function Dashboard() {
                                 <div
                                     className="relative w-20 h-20 rounded-full flex items-center justify-center"
                                     style={{
-                                        background: percentage >= 50 ?
+                                        background: percentage >= 60 ?
                                             `conic-gradient(#2dd4bf ${percentage * 3.6}deg, #1f2933 0deg)`
                                             : `conic-gradient(#fb7185 ${percentage * 3.6}deg, #1f2933 0deg)`
                                     }}
@@ -216,6 +311,12 @@ export default function Dashboard() {
                                 </div>
                             </div>
 
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-4">
+                            <span className="text-xl font-extrabold">
+                                No percentage data...
+                            </span>
                         </div>
                     )}
                 </div>
@@ -236,46 +337,48 @@ export default function Dashboard() {
                         </p>
                     )}
 
-                    <div className="mt-4 space-y-3 text-sm">
-                        {newsEvents?.map((n, i) => (
-                            <div
-                                key={i}
-                                className="
-                w-full
-                border-b border-[#1f2933] pb-3
-                flex flex-col gap-1
-                sm:grid sm:grid-cols-[90px_70px_90px_1fr]
-                sm:gap-4 sm:items-center
-            "
-                            >
-                                {/* TIME */}
-                                <div className="flex sm:block">
-                                    <span className="sm:hidden text-gray-500 mr-1">Time:</span>
-                                    <span className="text-gray-400">{n.time}</span>
-                                </div>
+                    {newsEvents.length !== 0 && (
+                        <div className="mt-4 space-y-3 text-sm">
+                            {adjustedEvents?.map((n, i) => (
+                                <div
+                                    key={i}
+                                    className="
+                                w-full
+                                border-b border-[#1f2933] pb-3
+                                flex flex-col gap-1
+                                sm:grid sm:grid-cols-[90px_70px_90px_1fr]
+                                sm:gap-4 sm:items-center
+                            "
+                                >
+                                    {/* TIME */}
+                                    <div className="flex sm:block">
+                                        <span className="sm:hidden text-gray-500 mr-1">Time:</span>
+                                        <span className="text-gray-400">{n.time}</span>
+                                    </div>
 
-                                {/* CURRENCY */}
-                                <div className="flex sm:block">
-                                    <span className="sm:hidden text-gray-500 mr-1">Currency:</span>
-                                    <span className="text-blue-400 font-semibold">{n.currency}</span>
-                                </div>
+                                    {/* CURRENCY */}
+                                    <div className="flex sm:block">
+                                        <span className="sm:hidden text-gray-500 mr-1">Currency:</span>
+                                        <span className="text-blue-400 font-semibold">{n.currency}</span>
+                                    </div>
 
-                                {/* IMPACT */}
-                                <div className="flex sm:block">
-                                    <span className="sm:hidden text-gray-500 mr-1">Impact:</span>
-                                    <span className={`${impactColor(n.impact)} font-semibold`}>
-                                        {n.impact}
-                                    </span>
-                                </div>
+                                    {/* IMPACT */}
+                                    <div className="flex sm:block">
+                                        <span className="sm:hidden text-gray-500 mr-1">Impact:</span>
+                                        <span className={`${impactColor(n.impact)} font-semibold`}>
+                                            {n.impact}
+                                        </span>
+                                    </div>
 
-                                {/* EVENT */}
-                                <div className="flex sm:block text-gray-200">
-                                    <span className="sm:hidden text-gray-500 mr-1">Event:</span>
-                                    <span>{n.event}</span>
+                                    {/* EVENT */}
+                                    <div className="flex sm:block text-gray-200">
+                                        <span className="sm:hidden text-gray-500 mr-1">Event:</span>
+                                        <span>{n.event}</span>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
+                    )}
 
                 </div>
 
@@ -288,7 +391,7 @@ export default function Dashboard() {
 
 
                     <div className="space-y-6">
-                        {livePrice && (
+                        {livePrice ? (
                             <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-4">
                                 <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-1">
                                     Live Price
@@ -310,9 +413,13 @@ export default function Dashboard() {
                                         : "—"}
                                 </div>
                             </div>
-                        )}
+                        ) : <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-4">
+                            <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-1">
+                                No live price data...
+                            </h2>
+                        </div>}
 
-                        {fvg && (
+                        {fvg ? (
                             <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-4">
                                 <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-2">
                                     Fair Value Gap
@@ -329,7 +436,11 @@ export default function Dashboard() {
                                     Virgin: {fvg.fullVirgin ? "Yes" : "No"}
                                 </p>
                             </div>
-                        )}
+                        ) : <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-4">
+                            <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-2">
+                                No Fair Value Gap data...
+                            </h2>
+                        </div>}
                     </div>
                 </div>
 

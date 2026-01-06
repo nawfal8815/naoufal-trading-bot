@@ -40,9 +40,7 @@ const getNews = async () => {
                 const timeEl = row.querySelector('.calendar__time');
                 const currentTime = timeEl?.textContent.trim();
 
-                if (currentTime) {
-                    timeHolder = currentTime; // update FIRST
-                }
+
 
                 let impact = 'N/A';
 
@@ -60,6 +58,9 @@ const getNews = async () => {
                 const currency = row.querySelector('.calendar__currency')?.textContent.trim() || '';
 
                 if (currency === 'USD' || currency === 'EUR') {
+                    if (currentTime) {
+                        timeHolder = currentTime; // update FIRST
+                    }
                     data.push({
                         time: timeHolder, // ALWAYS correct
                         currency,

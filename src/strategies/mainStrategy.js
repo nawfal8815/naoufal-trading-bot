@@ -48,7 +48,8 @@ async function runStrategy() {
     if (config.timezone != "") {
         await postData({
             type: "timezone",
-            timezone: config.timezone
+            timezone: config.timezone,
+            offset: new Date().getTimezoneOffset()
         });
     } else {
         console.log("❌ Error posting the timezone");

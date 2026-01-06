@@ -2,9 +2,6 @@ require("dotenv").config();
 
 module.exports = {
     timezone: "",
-    broker1: "AlphaVantage",
-    broker2: "TwelveData",
-    broker3: "OANDA",
     symbol: "EURUSD",
     from: "EUR",
     to: "USD",
