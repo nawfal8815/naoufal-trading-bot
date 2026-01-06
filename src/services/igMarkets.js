@@ -78,6 +78,8 @@ async function executeTrade(epic, direction, size, stopDistance, limitDistance) 
         );
 
         const { snapshot } = marketRes.data;
+        console.log(marketRes);
+        return;
 
         if (!snapshot || snapshot.bid == null || snapshot.offer == null || snapshot.marketStatus !== "TRADEABLE") {
             throw new Error("Market price snapshot unavailable");
@@ -194,8 +196,8 @@ async function confirmDeal(dealReference) {
 //         "CS.D.EURUSD.CFD.IP",
 //         "BUY",
 //         1,          // ✅ MUST be integer ≥ 1
-//         15,      // stopDistance
-//         30       // limitDistance
+//         20,      // stopDistance
+//         40       // limitDistance
 //     );
 // })();
 

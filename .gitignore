@@ -18,3 +18,4 @@ logs/
 dist/
 *.local
 serviceAccount.json
+test.js

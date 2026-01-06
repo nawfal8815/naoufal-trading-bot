@@ -116,61 +116,74 @@ export default function Dashboard() {
 
         return "text-gray-400";
     };
-
-    const getOffsetDifference = (serverOffset, userOffset) => {
-        if (
-            typeof serverOffset !== "number" ||
-            typeof userOffset !== "number"
-        ) {
-            return 0;
-        }
-
-        // hours to ADD to server time to get user time
-        return (serverOffset - userOffset) / 60;
-    };
-
-
-    // Parse a time string like "10:00am" or "4:30pm" into hours and minutes
     function parseTimeString(timeStr) {
         if (!timeStr || timeStr.toLowerCase() === "all day") return null;
 
-        const [time, modifier] = timeStr.match(/(\d{1,2}:\d{2}|\d{1,2})(am|pm)/i).slice(1);
-        let [hours, minutes] = time.split(":").map(Number);
-        if (!minutes) minutes = 0;
+        const match = timeStr.match(/(\d{1,2})(?::(\d{2}))?(am|pm)/i);
+        if (!match) return null;
 
-        if (modifier.toLowerCase() === "pm" && hours < 12) hours += 12;
-        if (modifier.toLowerCase() === "am" && hours === 12) hours = 0;
+        let hours = parseInt(match[1], 10);
+        const minutes = match[2] ? parseInt(match[2], 10) : 0;
+        const modifier = match[3].toLowerCase();
+
+        if (modifier === "pm" && hours < 12) hours += 12;
+        if (modifier === "am" && hours === 12) hours = 0;
 
         return { hours, minutes };
     }
 
-    // Convert hours and minutes back to a 12-hour string
-    function formatTime(hours, minutes) {
+    // Helper: convert {hours, minutes} back to 12-hour string
+    function formatTime({ hours, minutes }) {
         const modifier = hours >= 12 ? "pm" : "am";
-        let adjustedHours = hours % 12;
-        if (adjustedHours === 0) adjustedHours = 12;
-        return `${adjustedHours}:${minutes.toString().padStart(2, "0")}${modifier}`;
+        let displayHours = hours % 12;
+        if (displayHours === 0) displayHours = 12;
+        return `${displayHours}:${minutes.toString().padStart(2, "0")}${modifier}`;
     }
 
-    // Adjust a time string by a number of hours
-    function adjustTimeString(timeStr, offsetHours) {
-        const parsed = parseTimeString(timeStr);
-        if (!parsed) return timeStr; // keep "All Day" as-is
+    // Main function: adjust all events by a timezone offset in hours
+    function adjustEventsTime(events, offsetHours) {
+        return events.map(event => {
+            if (!event.time || event.time.toLowerCase() === "all day") {
+                return { ...event }; // leave "All Day" as-is
+            }
 
-        let newHours = parsed.hours + offsetHours;
-        console.log(newHours);
+            const parsed = parseTimeString(event.time);
+            if (!parsed) return { ...event };
 
-        // Handle wrapping over 24h
-        if (newHours >= 24) newHours -= 24;
-        if (newHours < 0) newHours += 24;
-        return formatTime(newHours, parsed.minutes);
+            let newHours = parsed.hours + offsetHours;
+
+            // wrap over 24 hours
+            if (newHours >= 24) newHours -= 24;
+            if (newHours < 0) newHours += 24;
+
+            return {
+                ...event,
+                time: formatTime({ hours: newHours, minutes: parsed.minutes })
+            };
+        });
     }
 
+    function getTimeDifference(tz1, tz2) {
+        const now = new Date();
+
+        // Get offsets in minutes
+        const offset1 = -now.toLocaleString("en-US", { timeZone: tz1, hour12: false, hour: "2-digit", minute: "2-digit" })
+            .split(":").reduce((acc, val, idx) => acc + (idx === 0 ? parseInt(val) * 60 : parseInt(val)), 0);
+
+        const offset2 = -now.toLocaleString("en-US", { timeZone: tz2, hour12: false, hour: "2-digit", minute: "2-digit" })
+            .split(":").reduce((acc, val, idx) => acc + (idx === 0 ? parseInt(val) * 60 : parseInt(val)), 0);
+
+        // Calculate difference in hours
+        const diffHours = (offset2 - offset1) / 60;
+        return diffHours;
+    }
 
 
     const account = data.find(d => d.type === "accountDetails")?.account;
     const timezone = data.find(d => d.type === "timezone")?.timezone;
-    const dbOffsetMinutes = data.find(d => d.type === "timezone")?.offset;
+    const offsetHours = getTimeDifference(userTimezone, timezone);
+    console.log(offsetHours);
+
     const dailyInfo = dbData?.dailyInfo;
     const newsDoc = dbData?.news;
     const livePriceDoc = dbData?.livePrice;
@@ -191,20 +204,7 @@ export default function Dashboard() {
     const news = newsDoc?.decision ?? null;
 
     const newsEvents = newsDoc?.events ?? [];
-    const userOffsetMinutes = new Date().getTimezoneOffset();
-    const timeZoneDifference = getOffsetDifference(dbOffsetMinutes, userOffsetMinutes);
-    const adjustedEvents = newsEvents.map((event) => {
-        // Only adjust if timezone difference exists
-        const newTime = timeZoneDifference !== 0
-            ? adjustTimeString(event.time, timeZoneDifference) // subtract because userOffset < serverOffset
-            : event.time;
-
-        return {
-            ...event,
-            time: newTime
-        };
-    });
-
+    const adjustedEvents = adjustEventsTime(newsEvents, offsetHours);
 
 
 

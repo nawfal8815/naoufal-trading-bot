@@ -49,7 +49,6 @@ async function runStrategy() {
         await postData({
             type: "timezone",
             timezone: config.timezone,
-            offset: new Date().getTimezoneOffset()
         });
     } else {
         console.log("❌ Error posting the timezone");

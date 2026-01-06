@@ -1,5 +1,5 @@
 const puppeteer = require('puppeteer');
-const { postData } = require('../server/apiClient');
+
 
 const getNews = async () => {
     const browser = await puppeteer.launch({
@@ -12,13 +12,6 @@ const getNews = async () => {
     });
 
     const page = await browser.newPage();
-
-    // Set cookies first
-    await page.setCookie({
-        name: 'ff_timezone',
-        value: 'America/New_York',
-        domain: '.forexfactory.com'
-    });
 
     console.log('Navigating for news...');
     await page.goto('https://www.forexfactory.com/', {
