@@ -182,7 +182,6 @@ export default function Dashboard() {
     const account = data.find(d => d.type === "accountDetails")?.account;
     const timezone = data.find(d => d.type === "timezone")?.timezone;
     const offsetHours = getTimeDifference(userTimezone, timezone);
-    console.log(offsetHours);
 
     const dailyInfo = dbData?.dailyInfo;
     const newsDoc = dbData?.news;
@@ -325,6 +324,18 @@ export default function Dashboard() {
                 <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-5">
                     <h2 className="text-sm uppercase tracking-wider text-gray-400 mb-3">
                         News Decision
+                        <span className="block mt-1 text-[9px] text-teal-500 italic">
+                            (The time could be scaled{' '}
+                            <a
+                                href="https://www.forexfactory.com/"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="underline text-gray-400 hover:text-gray-300 transition-colors"
+                            >
+                                forexfactory.com
+                            </a>{' '}
+                            for exact time)
+                        </span>
                     </h2>
 
                     {news ? (

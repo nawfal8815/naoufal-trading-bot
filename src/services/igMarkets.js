@@ -1,6 +1,7 @@
 const axios = require("axios");
 const config = require("../../config/config");
 const { sleep } = require('../utils/sleep');
+const { getEntryData } = require('../core/riskManager')
 
 const IG_BASE_URL = config.igMarkets.baseUrl;
 
@@ -70,7 +71,7 @@ async function getAccount(accountID) {
 /**
  * Execute a market trade using ABSOLUTE price levels
  */
-async function executeTrade(epic, direction, size, stopDistance, limitDistance) {
+async function executeTrade(epic, direction, size, stopLevel, limitLevel) {
     try {
         const marketRes = await axios.get(
             `${IG_BASE_URL}/markets/${epic}`,
@@ -78,12 +79,12 @@ async function executeTrade(epic, direction, size, stopDistance, limitDistance) 
         );
 
         const { snapshot } = marketRes.data;
-        console.log(marketRes);
-        return;
+
 
         if (!snapshot || snapshot.bid == null || snapshot.offer == null || snapshot.marketStatus !== "TRADEABLE") {
             throw new Error("Market price snapshot unavailable");
         }
+
 
         const body = {
             epic,
@@ -93,9 +94,11 @@ async function executeTrade(epic, direction, size, stopDistance, limitDistance) 
             forceOpen: true,
             guaranteedStop: false,
             currencyCode: "USD",
-            stopDistance,
-            limitDistance
+            expiry: "-"
         };
+
+        if (stopLevel !== null) body.stopLevel = stopLevel;
+        if (limitLevel !== null) body.limitLevel = limitLevel;
 
         const res = await axios.post(
             `${IG_BASE_URL}/positions/otc`,
@@ -105,15 +108,16 @@ async function executeTrade(epic, direction, size, stopDistance, limitDistance) 
 
         const dealReference = res.data.dealReference;
 
+        console.log(dealReference);
+
         // ⏳ wait briefly (IG needs time)
         await sleep(500);
 
-        const confirm = await confirmDeal(dealReference);
-
-        if (confirm.dealStatus !== "ACCEPTED") {
-            throw new Error(
-                `Deal rejected: ${confirm.dealStatus} – ${confirm.reason || "unknown"}`
-            );
+        let confirm;
+        for (let i = 0; i < 5; i++) {
+            confirm = await confirmDeal(dealReference);
+            if (confirm.dealStatus === "ACCEPTED" || confirm.dealStatus === "REJECTED") break;
+            await sleep(500); // 0.5s delay
         }
 
         console.log("✅ Trade confirmed:", confirm.dealId);
@@ -121,7 +125,7 @@ async function executeTrade(epic, direction, size, stopDistance, limitDistance) 
 
 
     } catch (err) {
-        console.error("❌ Trade failed", err.response?.data || err.message);
+        console.error("❌ Trade failed", err.response?.data);
         throw err;
     }
 }
@@ -131,10 +135,9 @@ async function executeTrade(epic, direction, size, stopDistance, limitDistance) 
 
 async function stopAllTrades() {
     try {
-        const res = await axios.get(
-            `${IG_BASE_URL}/positions`,
-            { headers: { ...authHeaders(), VERSION: "2" } }
-        );
+        const res = await axios.get(`${IG_BASE_URL}/positions`, {
+            headers: { ...authHeaders(), VERSION: "2" }
+        });
 
         const positions = res.data.positions || [];
         if (!positions.length) {
@@ -143,27 +146,42 @@ async function stopAllTrades() {
         }
 
         for (const pos of positions) {
-            await axios.delete(
-                `${IG_BASE_URL}/positions/otc`,
-                {
-                    headers: { ...authHeaders(), VERSION: "1" },
-                    params: {
-                        dealId: pos.dealId,
-                        direction: pos.direction === "BUY" ? "SELL" : "BUY",
-                        size: pos.size,
-                        orderType: "MARKET"
-                    }
-                }
-            );
+            const p = pos.position;
+            const m = pos.market;
 
+            console.log(`Closing ${p.dealId} (${p.direction} ${p.size} ${m.epic})`);
 
-            console.log(`✅ Closed position ${pos.dealId}`);
+            await closePositionDemo(pos);
+
+            console.log(`✅ Closed position ${p.dealId}`);
         }
     } catch (err) {
         console.error("❌ Failed to stop all trades", err.response?.data || err.message);
-        throw err;
     }
 }
+
+
+async function closePositionDemo(pos) {
+    // pos = { position: {...}, market: {...} }
+    const p = pos.position;
+    const m = pos.market;
+
+    return await axios.post(
+        `${IG_BASE_URL}/positions/otc`,
+        {
+            epic: m.epic,                       // <-- use market.epic
+            direction: p.direction === "BUY" ? "SELL" : "BUY",
+            size: p.size,
+            orderType: "MARKET",
+            forceOpen: false,                    // false = close position
+            expiry: "-",                          // CFDs have continuous expiry
+            currencyCode: p.currency || "USD",
+            guaranteedStop: false
+        },
+        { headers: { ...authHeaders(), VERSION: "2" } }
+    );
+}
+
 
 /* -------------------- SCHEDULER -------------------- */
 
@@ -191,14 +209,35 @@ async function confirmDeal(dealReference) {
 /* -------------------- TEST (REMOVE IN PROD) -------------------- */
 
 // (async () => {
+//     const signal = { potential: "buy" }
+//     const fvg = {
+//         type: "bullish",
+//         gapHigh: 1.17075,
+//         gapLow: 1.17038,
+//         gapMid: 1.170565,
+//         fullVirgin: true,
+//         createdIndex: 50
+
+//     }
+//     const candle = {
+//         open: 1.17038,
+//         close: 1.17075,
+//         high: 1.17090,
+//         low: 1.17010
+//     }
 //     await login();
+//     const dataEntry = await getEntryData(fvg, candle, signal.potential);
+//     console.log(dataEntry);
+//     // return
 //     await executeTrade(
 //         "CS.D.EURUSD.CFD.IP",
 //         "BUY",
-//         1,          // ✅ MUST be integer ≥ 1
-//         20,      // stopDistance
-//         40       // limitDistance
+//         1,
+//         116975,
+//         117274
 //     );
+//     await sleep(1000 * 10);
+//     await stopAllTrades();
 // })();
 
 /* -------------------- EXPORTS -------------------- */

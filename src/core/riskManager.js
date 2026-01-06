@@ -9,8 +9,8 @@ async function getEntryData(fvg, candle, bias) {
         const POSITION_SIZE = config.risk.moneyAtRisk / ((candle.close - SL) * config.multiplyer);
         return {
             entryPrice: candle.close,
-            sl: SL,
-            tp: candle.close + ((candle.close - SL) * config.RR),
+            sl: SL * config.multiplyer,
+            tp: (candle.close + ((candle.close - SL) * config.RR)) * config.multiplyer,
             positionSize: POSITION_SIZE
         };
     } else if (bias === "sell") {
@@ -19,8 +19,8 @@ async function getEntryData(fvg, candle, bias) {
         const POSITION_SIZE = config.risk.moneyAtRisk / ((SL - candle.close) * config.multiplyer);
         return {
             entryPrice: candle.close,
-            sl: SL,
-            tp: candle.close - ((SL - candle.close) * config.RR),
+            sl: SL * config.multiplyer,
+            tp: (candle.close - ((SL - candle.close) * config.RR)) * config.multiplyer,
             positionSize: POSITION_SIZE
         };
     }

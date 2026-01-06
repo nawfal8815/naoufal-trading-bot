@@ -72,8 +72,7 @@ async function monitorFVG({ fvg, signal }) {
             console.log("✅ Confirmation candle detected!");
             return {
                 status: "confirmed",
-                entryCandle: candle,
-                fvg
+                entryCandle: candle
             };
         }
 

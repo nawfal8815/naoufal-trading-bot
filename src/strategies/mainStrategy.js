@@ -199,7 +199,7 @@ async function runStrategy() {
                 return; // restart fresh next day
             } else {
                 //place trade
-                const entryData = await getEntryData(result.fvg, result.entryCandle, signal.potential);
+                const entryData = await getEntryData(fvg, result.entryCandle, signal.potential);
                 console.log("Placing trade with entry data:", entryData);
                 await saveLog("Placing trade with entry data:", entryData);
 
@@ -215,7 +215,7 @@ async function runStrategy() {
                 await executeTrade(
                     "CS.D.EURUSD.CFD.IP",
                     signal.potential === "buy" ? "BUY" : "SELL",
-                    entryData.positionSize,
+                    entryData.positionSize > 1 ?? 1,
                     entryData.sl,
                     entryData.tp
                 );
