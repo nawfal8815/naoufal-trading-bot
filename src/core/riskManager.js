@@ -9,9 +9,9 @@ async function getEntryData(fvg, candle, bias) {
         const POSITION_SIZE = config.risk.moneyAtRisk / ((candle.close - SL) * config.multiplyer);
         return {
             entryPrice: candle.close,
-            sl: SL * config.multiplyer,
-            tp: (candle.close + ((candle.close - SL) * config.RR)) * config.multiplyer,
-            positionSize: POSITION_SIZE
+            sl: SL * config.slMultipler,
+            tp: Math.floor((candle.close + ((candle.close - SL) * config.RR)) * config.slMultipler),
+            positionSize: Number(POSITION_SIZE.toFixed(3))
         };
     } else if (bias === "sell") {
         const slLevel = fvg.gapHigh > candle.high ? fvg.gapHigh : candle.high;
@@ -19,9 +19,9 @@ async function getEntryData(fvg, candle, bias) {
         const POSITION_SIZE = config.risk.moneyAtRisk / ((SL - candle.close) * config.multiplyer);
         return {
             entryPrice: candle.close,
-            sl: SL * config.multiplyer,
-            tp: (candle.close - ((SL - candle.close) * config.RR)) * config.multiplyer,
-            positionSize: POSITION_SIZE
+            sl: SL * config.slMultipler,
+            tp: (candle.close - ((SL - candle.close) * config.RR)) * config.slMultipler,
+            positionSize: Number(POSITION_SIZE.toFixed(3))
         };
     }
 }

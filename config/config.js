@@ -8,6 +8,7 @@ module.exports = {
     timeframe: "M15",
     RR: 2, // Risk to Reward ratio
     multiplyer: 100000, // for position size calculation
+    slMultipler: 10000,
     daylycandles: 20,
     candles15needed: 4 * 24 * 50, //7 days of candles
     port: process.env.PORT,
@@ -17,7 +18,7 @@ module.exports = {
 
     risk: {
         perTrade: 0.01, // 1%
-        moneyAtRisk: 0 // in account currency
+        moneyAtRisk: 100 // in account currency
     },
 
     telegram: {
