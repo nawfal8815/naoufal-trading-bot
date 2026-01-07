@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { auth } from "../../firebase/firebase";
 import {
     updatePassword,
@@ -6,13 +6,15 @@ import {
     EmailAuthProvider,
     onAuthStateChanged
 } from "firebase/auth";
-import { saveUserSettings } from "../../firebase/queries.client";
+import { saveUserSettingsTelegram, saveUserSettingsIGMarkets } from "../../firebase/queries.client";
 import { FaUserCircle, FaArrowLeft } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import { api } from "../server/frontendApi";
 
 export default function Settings() {
     const navigate = useNavigate();
     const [user, setUser] = useState(null);
+    const [authLoading, setAuthLoading] = useState(true);
 
     // Password
     const [oldPassword, setOldPassword] = useState("");
@@ -35,9 +37,14 @@ export default function Settings() {
 
     // Listen for user auth state
     useEffect(() => {
-        const unsub = onAuthStateChanged(auth, setUser);
+        const unsub = onAuthStateChanged(auth, (firebaseUser) => {
+            setUser(firebaseUser);     // null or user
+            setAuthLoading(false);     // auth resolved
+        });
+
         return () => unsub();
     }, []);
+
 
     const isPasswordUser = user?.providerData.some(
         p => p.providerId === "password"
@@ -114,8 +121,9 @@ export default function Settings() {
         }
 
         try {
-            await saveUserSettings(auth.currentUser.uid, { telegramChatId });
-            setTelegramStatus({ type: "success", message: "Telegram Chat ID saved successfully." });
+            await saveUserSettingsTelegram(auth.currentUser.uid, { telegramChatId });
+            setTelegramStatus({ type: "success", message: "Telegram Chat ID saved successfully. You will receive a check message in 5 secs" });
+            setTelegramChatId("");
         } catch {
             setTelegramStatus({ type: "error", message: "Failed to save Telegram Chat ID." });
         }
@@ -131,8 +139,14 @@ export default function Settings() {
             return;
         }
 
-        await saveUserSettings(auth.currentUser.uid, { igAccount });
+        await saveUserSettingsIGMarkets(auth.currentUser.uid, { igAccount });
         setIgStatus({ type: "success", message: "IG account data captured." });
+        setIgAccount({
+            username: "",
+            password: "",
+            accountID: "",
+            accountType: "CFD"
+        });
     }
 
     function validatePassword(password) {
@@ -156,8 +170,26 @@ export default function Settings() {
             </div>
         );
 
+    if (authLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#0b0f14] text-gray-400">
+                Checking authentication…
+            </div>
+        );
+    }
+
     if (!user) {
-        return <div className="min-h-screen flex items-center justify-center bg-[#0b0f14] text-gray-400">Loading user…</div>;
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-[#0b0f14] text-gray-400">
+                <p className="mb-4">You must be logged in to access settings.</p>
+                <button
+                    onClick={() => navigate("/")}
+                    className="px-4 py-2 rounded bg-blue-500 text-white hover:bg-blue-600"
+                >
+                    Go to Login
+                </button>
+            </div>
+        );
     }
 
     return (
@@ -203,6 +235,9 @@ export default function Settings() {
                     <h2 className="text-sm uppercase tracking-wider text-gray-400 mb-3">Connect Telegram</h2>
                     <input type="text" placeholder="Telegram Chat ID" className={input} value={telegramChatId} onChange={e => setTelegramChatId(e.target.value)} />
                     <button onClick={handleTelegramSave} className={`${btn} mt-3 text-blue-400 hover:text-blue-300`}>Save Chat ID</button>
+                    <span className="block mt-1 text-[15px] text-teal-500 italic">
+                        (To get yout chat ID use @userinfobot Telegram bots, once you submit you will receive a check message!)
+                    </span>
                     {statusBox(telegramStatus)}
                 </div>
 

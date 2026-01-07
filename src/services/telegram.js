@@ -1,5 +1,6 @@
 const TelegramBot = require("node-telegram-bot-api");
 const config = require("../../config/config");
+const { getData } = require('../../firebase/queries');
 
 let bot;
 
@@ -39,5 +40,16 @@ function sendTelegramMessage(text, options = {}) {
   return bot.sendMessage(config.telegram.chatId, text, options);
 }
 
+function sendTelegramMessageID(text, options = {}, id) {
+  return bot.sendMessage(id, text, options);
+}
 
-module.exports = { sendTelegramMessage };
+async function usersSender (text, options = {}) {
+  const snapshot = await getData("UserSettings");
+  if (!snapshot) return
+  snapshot.docs.map(doc => {
+    if (doc.data().telegramChecked === true) sendTelegramMessageID(doc.id); 
+  });
+}
+
+module.exports = { sendTelegramMessage, sendTelegramMessageID, usersSender };

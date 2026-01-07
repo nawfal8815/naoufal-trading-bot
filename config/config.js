@@ -6,19 +6,20 @@ module.exports = {
     from: "EUR",
     to: "USD",
     timeframe: "M15",
-    RR: 2, // Risk to Reward ratio
-    multiplyer: 100000, // for position size calculation
-    slMultipler: 10000,
     daylycandles: 20,
     candles15needed: 4 * 24 * 50, //7 days of candles
     port: process.env.PORT,
     url: process.env.URL,
     tradeQuality: 100,
-    pips: 0.0016,
 
     risk: {
         perTrade: 0.01, // 1%
-        moneyAtRisk: 100 // in account currency
+        moneyAtRisk: 100, // in account currency
+        pips: 0.0016,
+        maxTreadesPerDay: 2,
+        RR: 2, // Risk to Reward ratio
+        multiplyer: 100000, // for position size calculation
+        slMultipler: 10000
     },
 
     telegram: {
@@ -27,7 +28,7 @@ module.exports = {
     },
 
     alphaVantage: {
-        baseUrl : "https://www.alphavantage.co/query",
+        baseUrl: "https://www.alphavantage.co/query",
         apiKey: process.env.ALPHAVANTAGE_KEY,
         environment: "practice"
     },

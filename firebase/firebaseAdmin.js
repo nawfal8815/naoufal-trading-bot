@@ -1,4 +1,9 @@
 const admin = require("firebase-admin");
+require("dotenv").config();
+
+if (!process.env.FIREBASE_PRIVATE_KEY) {
+  throw new Error("FIREBASE_PRIVATE_KEY is missing from environment variables");
+}
 
 if (!admin.apps.length) {
   admin.initializeApp({

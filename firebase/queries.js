@@ -73,10 +73,38 @@ async function saveNews(data) {
 
 async function getData(col) {
     try {
-        return await db.collection(col).get();
+        const snapshot = await db.collection(col).get();
+        if (snapshot.empty) return;
+        return snapshot;
     } catch (err) {
         console.error(err);
     }
 }
 
-module.exports = { saveLog, saveDailyInfo, saveLivePrice, saveNews, savePosition, getData };
+async function telegramChecked(id) {
+    try {
+        const ref = db.collection("UserSettings").doc(id);
+        const snapshot = await ref.get();
+        if (!snapshot.exists) return;
+        await ref.update({
+            telegramChecked: true
+        });
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+async function igMarketsChecked(id) {
+    try {
+        const ref = db.collection("UserSettings").doc(id);
+        const snapshot = await ref.get();
+        if (!snapshot.exists) return;
+        await ref.update({
+            igChecked: true
+        });
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+module.exports = { saveLog, saveDailyInfo, saveLivePrice, saveNews, savePosition, getData, telegramChecked, igMarketsChecked };

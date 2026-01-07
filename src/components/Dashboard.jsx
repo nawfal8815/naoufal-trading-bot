@@ -324,7 +324,7 @@ export default function Dashboard() {
                 <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-5">
                     <h2 className="text-sm uppercase tracking-wider text-gray-400 mb-3">
                         News Decision
-                        <span className="block mt-1 text-[9px] text-teal-500 italic">
+                        <span className="block mt-1 text-[15px] text-teal-500 italic">
                             (The time could be scaled{' '}
                             <a
                                 href="https://www.forexfactory.com/"
@@ -377,7 +377,7 @@ export default function Dashboard() {
                                     <div className="flex sm:block">
                                         <span className="sm:hidden text-gray-500 mr-1">Impact:</span>
                                         <span className={`${impactColor(n.impact)} font-semibold`}>
-                                            {n.impact}
+                                            {n.impact === "N/A" ? "Non-Economic" : n.impact}
                                         </span>
                                     </div>
 

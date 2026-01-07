@@ -14,8 +14,10 @@ const { postData } = require("../server/apiClient");
 const { setTimeZone, checkIfWeekend } = require("../utils/date");
 const { initCollections } = require('../../firebase/initCollections');
 const { saveLog, saveDailyInfo, saveNews, savePosition } = require('../../firebase/queries');
+const { accountsAproaval } = require('../../firebase/accountsConfirmator');
 
 let strategyRunning = false; // prevent overlapping runs
+let tradesToday = 0;
 
 async function runStrategy() {
 
@@ -24,6 +26,9 @@ async function runStrategy() {
 
     //init collections
     await initCollections();
+
+    //start accounts confirmator timeline every 5 secs
+    accountsAproaval();
 
     //set the timer to auto reexecute the strategie the next day
     const delay = await msUntilNextAsiaSession();
@@ -36,8 +41,8 @@ async function runStrategy() {
 
     //check if its weekend
     if (await checkIfWeekend()) {
-    console.log("Weekend — no trading 🚫");
-    await saveLog("Weekend — no trading 🚫");
+        console.log("Weekend — no trading 🚫");
+        await saveLog("Weekend — no trading 🚫");
         await sleepUntilNextAsiaSession();
         strategyRunning = false;
         return;
@@ -53,7 +58,7 @@ async function runStrategy() {
     } else {
         console.log("❌ Error posting the timezone");
         await saveLog("❌ Error posting the timezone");
-        
+
     }
 
 
@@ -62,17 +67,17 @@ async function runStrategy() {
         await login();
         const account = await getAccount(config.igMarkets.accountID);
         console.log("Account Balance:", account.balance.balance);
-        await saveLog("Account Balance:", account.balance.balance);
+        await saveLog("Account Balance: " + account.balance.balance);
         config.risk.moneyAtRisk = config.risk.perTrade * account.balance.balance;
         await postData({
             type: "accountDetails",
-            account: {accountID: account.accountId, balance: account.balance.balance, moneyAtRisk: config.risk.moneyAtRisk}
+            account: { accountID: account.accountId, balance: account.balance.balance, moneyAtRisk: config.risk.moneyAtRisk }
         })
         console.log(`💰 Money at Risk per Trade: ${config.risk.moneyAtRisk}`);
         await saveLog(`💰 Money at Risk per Trade: ${config.risk.moneyAtRisk}`);
     } catch (err) {
         console.error("❌ Login failed", err.response?.data || err.message);
-        await saveLog("❌ Login failed", err.response?.data || err.message);
+        await saveLog("❌ Login failed " + err.response?.data || err.message);
         strategyRunning = false;
         // retry after short delay
         console.log("Retrying strategy in 1 minute...");
@@ -126,7 +131,7 @@ async function runStrategy() {
             Potential: ${signal.potential}
         `, { parse_mode: "Markdown" });
         console.log("Final Signal:", signal.potential);
-        await saveLog("Final Signal:", signal.potential);
+        await saveLog("Final Signal: " + signal.potential);
 
         await sleep(2000); // brief pause before proceeding
 
@@ -155,7 +160,7 @@ async function runStrategy() {
             { parse_mode: "Markdown" }
         );
         console.log("Closest Virgin FVG for signal:", fvg);
-        await saveLog("Closest Virgin FVG for signal:", fvg);
+        await saveLog("Closest Virgin FVG for signal: " + fvg);
 
         await sleep(2000); // brief pause before proceeding
 
@@ -168,6 +173,7 @@ async function runStrategy() {
             quality: config.tradeQuality,
             target: signal.target,
             fvg: {
+                createdAt: fvg.createdAt,
                 type: fvg.type,
                 gapHigh: fvg.gapHigh,
                 gapLow: fvg.gapLow,
@@ -201,7 +207,7 @@ async function runStrategy() {
                 //place trade
                 const entryData = await getEntryData(fvg, result.entryCandle, signal.potential);
                 console.log("Placing trade with entry data:", entryData);
-                await saveLog("Placing trade with entry data:", entryData);
+                await saveLog("Placing trade with entry data: " + entryData);
 
                 sendTelegramMessage(
                     `🚀 *Trade Confirmed! ${config.symbol}*
@@ -219,7 +225,7 @@ async function runStrategy() {
                     entryData.sl,
                     entryData.tp
                 );
-
+                tradesToday++;
                 const positionDB = {
                     direction: signal.potential,
                     entryPrice: entryData.entryPrice,
@@ -232,11 +238,17 @@ async function runStrategy() {
 
                 monitorTrade(entryData.takeProfit, entryData.stopLoss, signal.potential);
                 scheduleStopAll();
-                console.log("Trade executed successfully. Strategy cycle complete for the day.");
-                await saveLog("Trade executed successfully. Strategy cycle complete for the day.");
                 strategyRunning = false;
-                await sleepUntilNextAsiaSession();
-                return; // restart fresh next day
+                if (tradesToday > config.risk.maxTreadesPerDay) {
+                    console.log("Trade executed successfully. Strategy cycle complete for the day.");
+                    await saveLog("Trade executed successfully. Strategy cycle complete for the day.");
+                    await sleepUntilNextAsiaSession();
+                    return; // restart fresh next day
+                } else {
+                    console.log("Trade executed successfully. Restarting strategy.");
+                    await saveLog("Trade executed successfully. Restarting strategy.");
+                    return;
+                }
             }
         } if (result.status === "expired-day") {
             console.log("❌ Day expired. Waiting until next session...");

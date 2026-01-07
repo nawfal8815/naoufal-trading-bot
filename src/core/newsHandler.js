@@ -43,7 +43,7 @@ function buildTradingRules(classifiedEvents) {
     if (!rules.skipDay && rules.blockTimes.length === 0 && rules.warnTimes.length > 0) rules.decision = "⚠ Medium impact news — risky conditions";
     if (!rules.skipDay && rules.blockTimes.length > 0) {
         rules.decision = "🚫 High impact news at: ";
-        rules.blockTimes.map(t => rules.decision += t)
+        rules.blockTimes.map((t, i) => rules.decision += rules.decision.includes(t) ? "" : i > 0 ? ", " + t : t);
     }
     if (rules.skipDay) rules.decision = "🚫 High impact news all day — trading disabled"
 
