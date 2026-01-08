@@ -7,13 +7,12 @@ async function getEntryData(fvg, candle, bias) {
         const slLevel = fvg.gapLow < candle.low ? fvg.gapLow : candle.low;
         const SL = (candle.close - slLevel < config.risk.pips ? candle.close - config.risk.pips : slLevel);
         const TP = (candle.close + ((candle.close - SL) * config.risk.RR));
-        const POSITION_SIZE = config.risk.moneyAtRisk / ((candle.close - SL) * config.risk.multiplyer);
         const ENTRY_PRICE = candle.close;
         return {
+            bias,
             entryPrice: Number(ENTRY_PRICE * config.risk.slMultipler.toFixed(3)),
             sl: Number((SL * config.risk.slMultipler).toFixed(3)),
             tp: Number((TP * config.risk.slMultipler).toFixed(3)),
-            positionSize: Number(POSITION_SIZE.toFixed(3)),
             slDistance: Number(((ENTRY_PRICE - SL) * config.risk.slMultipler).toFixed(3)),
             tpDistance: Number(((TP - ENTRY_PRICE) * config.risk.slMultipler).toFixed(3))
         };
@@ -21,17 +20,27 @@ async function getEntryData(fvg, candle, bias) {
         const slLevel = fvg.gapHigh > candle.high ? fvg.gapHigh : candle.high;
         const SL = (slLevel - candle.close < config.risk.pips ? candle.close + config.risk.pips : slLevel);
         const TP = (candle.close - ((SL - candle.close) * config.risk.RR));
-        const POSITION_SIZE = Number(config.risk.moneyAtRisk / ((SL - candle.close) * config.risk.multiplyer).toFixed(3));
         const ENTRY_PRICE = candle.close;
         return {
+            bias,
             entryPrice: Number(ENTRY_PRICE * config.risk.slMultipler.toFixed(3)),
             sl: Number((SL * config.risk.slMultipler).toFixed(3)),
             tp: Number((TP * config.risk.slMultipler).toFixed(3)),
-            positionSize: Number(POSITION_SIZE.toFixed(3)),
             slDistance: Number(((SL - ENTRY_PRICE) * config.risk.slMultipler).toFixed(3)),
             tpDistance: Number(((ENTRY_PRICE - TP) * config.risk.slMultipler).toFixed(3))
         };
     }
+}
+
+async function getLotsize(entryData, balance) {
+    const moneyAtRisk = balance * config.risk.perTrade;
+    if (entryData.bias === "buy") {
+        return Number((moneyAtRisk / ((entryData.entryPrice - SL) * config.risk.multiplyer)).toFixed(3));
+    }
+    if (entryData.bias === "sell") {
+        return Number((moneyAtRisk / ((SL - entryData.entryPrice) * config.risk.multiplyer)).toFixed(3));
+    }
+
 }
 
 async function confirmationTimeChecker(rules) {
@@ -72,4 +81,4 @@ async function confirmationTimeChecker(rules) {
 }
 
 
-module.exports = { getEntryData, confirmationTimeChecker };
+module.exports = { getEntryData, confirmationTimeChecker, getLotsize };

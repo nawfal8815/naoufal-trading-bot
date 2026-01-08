@@ -107,4 +107,17 @@ async function igMarketsChecked(id) {
     }
 }
 
-module.exports = { saveLog, saveDailyInfo, saveLivePrice, saveNews, savePosition, getData, telegramChecked, igMarketsChecked };
+async function igMarketsundefiened(id) {
+    try {
+        const ref = db.collection("UserSettings").doc(id);
+        const snapshot = await ref.get();
+        if (!snapshot.exists) return;
+        await ref.update({
+            igUndefiened: true
+        });
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+module.exports = { saveLog, saveDailyInfo, saveLivePrice, saveNews, savePosition, getData, telegramChecked, igMarketsChecked, igMarketsundefiened };

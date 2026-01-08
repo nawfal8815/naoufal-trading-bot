@@ -6,15 +6,23 @@ import {
     EmailAuthProvider,
     onAuthStateChanged
 } from "firebase/auth";
-import { saveUserSettingsTelegram, saveUserSettingsIGMarkets } from "../../firebase/queries.client";
+import { saveUserSettings, getUserInfo, getUserIGCheck } from "../../firebase/queries.client";
 import { FaUserCircle, FaArrowLeft } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { api } from "../server/frontendApi";
 
 export default function Settings() {
     const navigate = useNavigate();
     const [user, setUser] = useState(null);
     const [authLoading, setAuthLoading] = useState(true);
+    const [editingEmail, setEditingEmail] = useState(false);
+    const [editingName, setEditingName] = useState(false);
+    const [email, setEmail] = useState("");
+    const [name, setName] = useState("");
+    const [newEmail, setNewEmail] = useState("");
+    const [newName, setNewName] = useState("");
+    const [igLoading, setIgLoading] = useState(false);
+
+    const [profileStatus, setProfileStatus] = useState(null);
 
     // Password
     const [oldPassword, setOldPassword] = useState("");
@@ -28,12 +36,36 @@ export default function Settings() {
 
     // IG
     const [igAccount, setIgAccount] = useState({
+        apiKey: "",
         username: "",
         password: "",
         accountID: "",
         accountType: "CFD"
     });
     const [igStatus, setIgStatus] = useState(null);
+
+    useEffect(() => {
+        if (!user) return; // exit early if user not loaded
+
+        const fetchUser = async () => {
+            try {
+                const { email, displayName } = await getUserInfo(user.uid);
+                setEmail(email);
+                setName(displayName);
+            } catch (err) {
+                console.error("DB fetch failed:", err);
+                setEmail("");
+                setName("");
+            }
+        };
+
+        fetchUser(); // initial fetch
+        const interval = setInterval(fetchUser, 60 * 1000); // optional auto-refresh
+
+        return () => clearInterval(interval); // cleanup
+    }, [user]); // run effect whenever `user` changes
+
+
 
     // Listen for user auth state
     useEffect(() => {
@@ -44,6 +76,14 @@ export default function Settings() {
 
         return () => unsub();
     }, []);
+
+
+    useEffect(() => {
+        if (profileStatus?.type === "success") {
+            const t = setTimeout(() => setProfileStatus(null), 5000);
+            return () => clearTimeout(t);
+        }
+    }, [profileStatus]);
 
 
     const isPasswordUser = user?.providerData.some(
@@ -121,7 +161,7 @@ export default function Settings() {
         }
 
         try {
-            await saveUserSettingsTelegram(auth.currentUser.uid, { telegramChatId });
+            await saveUserSettings(auth.currentUser.uid, { telegramChatId, telegramChecked: false });
             setTelegramStatus({ type: "success", message: "Telegram Chat ID saved successfully. You will receive a check message in 5 secs" });
             setTelegramChatId("");
         } catch {
@@ -132,6 +172,7 @@ export default function Settings() {
     // IG connect handler
     async function handleIGConnect() {
         setIgStatus(null);
+        setIgLoading(true);
 
         const missing = Object.entries(igAccount).filter(([_, v]) => !v).map(([k]) => k);
         if (missing.length) {
@@ -139,14 +180,27 @@ export default function Settings() {
             return;
         }
 
-        await saveUserSettingsIGMarkets(auth.currentUser.uid, { igAccount });
-        setIgStatus({ type: "success", message: "IG account data captured." });
-        setIgAccount({
-            username: "",
-            password: "",
-            accountID: "",
-            accountType: "CFD"
-        });
+        try {
+            await saveUserSettings(auth.currentUser.uid, { igAccount, igChecked: false, igUndefiened: false });
+            await new Promise(r => setTimeout(r, 6000));
+            const confirmation = await getUserIGCheck(user.uid);
+            if (confirmation) {
+                setIgStatus({ type: "success", message: "IG account connected." });
+                setIgAccount({
+                    apiKey: "",
+                    username: "",
+                    password: "",
+                    accountID: "",
+                    accountType: "CFD"
+                });
+            }
+            else setIgStatus({ type: "error", message: "IG account data is not valid." });
+        } catch (err) {
+            console.log(err);
+        } finally {
+            setIgLoading(false);
+        }
+
     }
 
     function validatePassword(password) {
@@ -157,6 +211,30 @@ export default function Settings() {
         if (!/[!@#$%^&*(),.?\":{}|<>]/.test(password)) return "Password must include at least one special character.";
         return null;
     }
+
+    async function handleSaveProfile() {
+        if (!newEmail.trim() && !newName.trim()) {
+            setProfileStatus({ type: "error", message: "Nothing to update." });
+            return;
+        }
+
+        try {
+            await saveUserSettings(auth.currentUser.uid, { email: newEmail, displayName: newName });
+
+            setProfileStatus({ type: "success", message: "Profile updated successfully." });
+            setEditingEmail(false);
+            setEditingName(false);
+            setNewEmail("");
+            setNewName("");
+        } catch {
+            setProfileStatus({ type: "error", message: "Failed to save profile settings." });
+        }
+    }
+
+
+    const providers = user?.providerData.map(p => p.providerId) || [];
+    const isGoogleUser = providers.includes("google.com");
+    const canEditProfile = providers.includes("password") || providers.includes("github.com");
 
     // Tailwind classes
     const card = "bg-[#11161d] border border-[#1f2933] rounded-xl p-5 w-full";
@@ -209,11 +287,92 @@ export default function Settings() {
                     ) : (
                         <FaUserCircle className="w-16 h-16 text-gray-500" />
                     )}
-                    <div>
-                        <p className="font-semibold">{user?.email || "No Email provided."}</p>
-                        <p className="font-semibold">{user?.displayName || "No username provided."}</p>
+
+                    <div className="flex-1 space-y-2">
+
+                        {/* EMAIL */}
+                        <div className="flex items-center gap-2">
+                            {!editingEmail ? (
+                                <>
+                                    <p className="font-semibold">
+                                        {user.email || email || "No email provided"}
+                                    </p>
+
+                                    {canEditProfile && (
+                                        <button
+                                            onClick={() => {
+                                                setEditingEmail(true);
+                                                setNewEmail(user.email || "");
+                                            }}
+                                            className="text-xs text-blue-400 hover:text-blue-300"
+                                        >
+                                            Edit
+                                        </button>
+                                    )}
+                                </>
+                            ) : (
+                                <input
+                                    type="email"
+                                    className="p-1 rounded bg-[#0b0f14] border border-[#1f2933] text-sm w-full"
+                                    placeholder="Enter email"
+                                    value={newEmail}
+                                    onChange={e => setNewEmail(e.target.value)}
+                                />
+                            )}
+                        </div>
+
+                        {/* USERNAME */}
+                        <div className="flex items-center gap-2">
+                            {!editingName ? (
+                                <>
+                                    <p className="font-semibold">
+                                        {user.displayName || name || "No username provided"}
+                                    </p>
+
+                                    {canEditProfile && (
+                                        <button
+                                            onClick={() => {
+                                                setEditingName(true);
+                                                setNewName(user.displayName || "");
+                                            }}
+                                            className="text-xs text-blue-400 hover:text-blue-300"
+                                        >
+                                            Edit
+                                        </button>
+                                    )}
+                                </>
+                            ) : (
+                                <input
+                                    type="text"
+                                    className="p-1 rounded bg-[#0b0f14] border border-[#1f2933] text-sm w-full"
+                                    placeholder="Enter username"
+                                    value={newName}
+                                    onChange={e => setNewName(e.target.value)}
+                                />
+                            )}
+                        </div>
+
+                        {(editingEmail || editingName) && (
+                            <div className="flex gap-2">
+                                <button onClick={handleSaveProfile} className="text-xs text-green-400">
+                                    Save
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setEditingEmail(false);
+                                        setEditingName(false);
+                                    }}
+                                    className="text-xs text-gray-400"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        )}
+
+                        {statusBox(profileStatus)}
                     </div>
                 </div>
+
 
                 {/* PASSWORD */}
                 {isPasswordUser && (
@@ -230,21 +389,51 @@ export default function Settings() {
                     </div>
                 )}
 
+                {/* NOTES */}
+                <div className={card}>
+                    <span className="mt-1 text-[15px] text-red-500 italic">IMPORTANT! </span>
+                    <span className="block mt-1 text-[15px] text-teal-500 italic">
+                        Before submitting your id search for @naoufal_trading_bot and send a message or click /start
+                    </span>
+                    <span className="block mt-1 text-[15px] text-teal-500 italic">
+                        Request to join the telegram channel if you would like to 
+                        <a
+                            href="https://t.me/+zy1JgGTQZcs2MTU0"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline text-gray-400 hover:text-gray-300 transition-colors"
+                        >
+                            {` `}https://t.me/+zy1JgGTQZcs2MTU0
+                        </a>
+                    </span>
+                    <span className="block mt-1 text-[15px] text-teal-500 italic">
+                        To get your chat ID use @userinfobot Telegram bots, once you submit you will receive a check message!
+                    </span>
+                    <span className="block mt-1 text-[15px] text-teal-500 italic">
+                        To get your IG Markets data login or create an account on
+                        <a
+                            href="https://www.ig.com/uk"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline text-gray-400 hover:text-gray-300 transition-colors"
+                        >
+                            {` `}ig.com
+                        </a>
+                    </span>
+                </div>
+
                 {/* TELEGRAM */}
                 <div className={card}>
                     <h2 className="text-sm uppercase tracking-wider text-gray-400 mb-3">Connect Telegram</h2>
                     <input type="text" placeholder="Telegram Chat ID" className={input} value={telegramChatId} onChange={e => setTelegramChatId(e.target.value)} />
                     <button onClick={handleTelegramSave} className={`${btn} mt-3 text-blue-400 hover:text-blue-300`}>Save Chat ID</button>
-                    <span className="block mt-1 text-[15px] text-teal-500 italic">
-                        (To get yout chat ID use @userinfobot Telegram bots, once you submit you will receive a check message!)
-                    </span>
                     {statusBox(telegramStatus)}
                 </div>
 
                 {/* IG */}
                 <div className={card}>
                     <h2 className="text-sm uppercase tracking-wider text-gray-400 mb-3">Connect IG Markets</h2>
-                    {["username", "password", "accountID", "accountType"].map(f => (
+                    {["apiKey", "username", "password", "accountID", "accountType"].map(f => (
                         <input
                             key={f}
                             type={f === "password" ? "password" : "text"}
@@ -254,7 +443,18 @@ export default function Settings() {
                             onChange={e => setIgAccount({ ...igAccount, [f]: e.target.value })}
                         />
                     ))}
-                    <button onClick={handleIGConnect} className={`${btn} text-purple-400 hover:text-purple-300`}>Connect IG Account</button>
+                    <button
+                        onClick={handleIGConnect}
+                        disabled={igLoading}
+                        className={`${btn} text-purple-400 hover:text-purple-300 flex items-center gap-2 ${igLoading ? "opacity-60 cursor-not-allowed" : ""
+                            }`}
+                    >
+                        {igLoading && (
+                            <span className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                        )}
+                        {igLoading ? "Connecting..." : "Connect IG Account"}
+                    </button>
+
                     {statusBox(igStatus)}
                 </div>
 

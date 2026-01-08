@@ -14,7 +14,6 @@ module.exports = {
 
     risk: {
         perTrade: 0.01, // 1%
-        moneyAtRisk: 100, // in account currency
         pips: 0.0016,
         maxTreadesPerDay: 2,
         RR: 2, // Risk to Reward ratio
@@ -23,18 +22,17 @@ module.exports = {
     },
 
     telegram: {
-        botToken: process.env.TELEGRAM_BOT_TOKEN,
-        chatId: process.env.TELEGRAM_CHAT_ID
+        botToken: process.env.TELEGRAM_BOT_TOKEN
     },
 
     alphaVantage: {
-        baseUrl: "https://www.alphavantage.co/query",
+        baseUrl: process.env.ALPHAVANTAGE_BASE_URL,
         apiKey: process.env.ALPHAVANTAGE_KEY,
-        environment: "practice"
+        environment: process.env.ALPHAVANTAGE_ENVIRONMENT
     },
 
     twelveData: {
-        baseUrl: "https://api.twelvedata.com",
+        baseUrl: process.env.TWELVE_DATA_BASE_URL,
         apiKey: process.env.TWELVE_DATA_KEY,
         apiKey2: process.env.TWELVE_DATA_KEY_SECOND,
         apiKey3: process.env.TWELVE_DATA_KEY_THIRD,
@@ -44,32 +42,32 @@ module.exports = {
 
     oanda: {
         apiKey: process.env.OANDA_API_KEY,
-        baseUrl: "https://api-fxpractice.oanda.com/v3",
-        environment: "practice" // or "live"
+        baseUrl: process.env.OANDA_API_BASE_URL,
+        environment: process.env.OANDA_ENVIRONMENT 
     },
 
     finnhub: {
         apiKey: process.env.FINNHUB_KEY,
-        baseUrl: "https://finnhub.io/api/v1"
+        baseUrl: process.env.FINNHUB_URL_KEY
     },
 
     igMarkets: {
         apiKey: process.env.IG_MARKETS_API_KEY,
-        baseUrl: "https://demo-api.ig.com/gateway/deal",
-        environment: "demo", // or "live"
+        baseUrl: process.env.IG_MARKETS_BASE_URL,
+        environment: process.env.IG_MARKETS_ENVIRONMENT,
         accountID: process.env.IG_ACCOUNT_ID,
         accountName: process.env.IG_ACCOUNT_NAME,
         username: process.env.IG_USER_NAME,
         password: process.env.IG_PASSWORD
     },
     newsDataIo: {
-        baseUrl: "https://newsdata.io/api/1/",
+        baseUrl: process.env.NEWS_DATA_IO_BASE_URL,
         apiKey: process.env.NEWS_DATA_IO_API_KEY
     },
 
     fmp: {
         apiKey: process.env.FINACIAL_MODELING_PREP_KEY,
-        baseUrl: "https://financialmodelingprep.com/api/v3"
+        baseUrl: process.env.FINACIAL_MODELING_PREP_BASE_URL
     }
 };
 

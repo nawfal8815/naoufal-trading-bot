@@ -1,30 +1,28 @@
 const axios = require("axios");
 const config = require("../../config/config");
 const { sleep } = require('../utils/sleep');
-const { getEntryData } = require('../core/riskManager')
 
 const IG_BASE_URL = config.igMarkets.baseUrl;
 
-const headersBase = {
-    "X-IG-API-KEY": config.igMarkets.apiKey,
-    "Content-Type": "application/json",
-    "Accept": "application/json; charset=UTF-8",
-    "User-Agent": "Mozilla/5.0 (Node.js Trading Bot)"
-};
-
-let session = {
-    CST: null,
-    X_SECURITY_TOKEN: null
-};
 
 /* -------------------- AUTH -------------------- */
 
-async function login() {
+async function login(apiKey, username, password) {
+    const headersBase = {
+        "X-IG-API-KEY": apiKey,
+        "Content-Type": "application/json",
+        "Accept": "application/json; charset=UTF-8",
+        "User-Agent": "Mozilla/5.0 (Node.js Trading Bot)"
+    };
+    let session = {
+        CST: null,
+        X_SECURITY_TOKEN: null
+    };
     const res = await axios.post(
         `${IG_BASE_URL}/session`,
         {
-            identifier: config.igMarkets.username,
-            password: config.igMarkets.password
+            identifier: username,
+            password: password
         },
         {
             headers: { ...headersBase, VERSION: "2" },
@@ -34,15 +32,9 @@ async function login() {
 
     session.CST = res.headers["cst"];
     session.X_SECURITY_TOKEN = res.headers["x-security-token"];
-
-    console.log("✅ IG authenticated");
-}
-
-function authHeaders() {
     if (!session.CST || !session.X_SECURITY_TOKEN) {
         throw new Error("Not authenticated with IG");
     }
-
     return {
         ...headersBase,
         CST: session.CST,
@@ -52,10 +44,10 @@ function authHeaders() {
 
 /* -------------------- ACCOUNT -------------------- */
 
-async function getAccount(accountID) {
+async function getAccount(accountID, authHeaders) {
     const res = await axios.get(
         `${IG_BASE_URL}/accounts`,
-        { headers: { ...authHeaders(), VERSION: "1" } }
+        { headers: { ...authHeaders, VERSION: "1" } }
     );
 
     const account = res.data.accounts.find(acc => acc.accountId === accountID);
@@ -71,11 +63,11 @@ async function getAccount(accountID) {
 /**
  * Execute a market trade using ABSOLUTE price levels
  */
-async function executeTrade(epic, direction, size, stopLevel, limitLevel) {
+async function executeTrade(epic, direction, size, stopLevel, limitLevel, authHeaders) {
     try {
         const marketRes = await axios.get(
             `${IG_BASE_URL}/markets/${epic}`,
-            { headers: { ...authHeaders(), VERSION: "3" } }
+            { headers: { ...authHeaders, VERSION: "3" } }
         );
 
         const { snapshot } = marketRes.data;
@@ -103,12 +95,10 @@ async function executeTrade(epic, direction, size, stopLevel, limitLevel) {
         const res = await axios.post(
             `${IG_BASE_URL}/positions/otc`,
             body,
-            { headers: { ...authHeaders(), VERSION: "2" } }
+            { headers: { ...authHeaders, VERSION: "2" } }
         );
 
         const dealReference = res.data.dealReference;
-
-        console.log(dealReference);
 
         // ⏳ wait briefly (IG needs time)
         await sleep(500);
@@ -126,22 +116,21 @@ async function executeTrade(epic, direction, size, stopLevel, limitLevel) {
 
     } catch (err) {
         console.error("❌ Trade failed", err.response?.data);
-        throw err;
+        return;
     }
 }
 
 
 /* -------------------- CLOSE ALL -------------------- */
 
-async function stopAllTrades() {
+async function stopAllTrades(authHeaders) {
     try {
         const res = await axios.get(`${IG_BASE_URL}/positions`, {
-            headers: { ...authHeaders(), VERSION: "2" }
+            headers: { ...authHeaders, VERSION: "2" }
         });
 
         const positions = res.data.positions || [];
         if (!positions.length) {
-            console.log("✅ No open positions to close");
             return;
         }
 
@@ -149,7 +138,6 @@ async function stopAllTrades() {
             const p = pos.position;
             const m = pos.market;
 
-            console.log(`Closing ${p.dealId} (${p.direction} ${p.size} ${m.epic})`);
 
             await closePositionDemo(pos);
 
@@ -161,7 +149,7 @@ async function stopAllTrades() {
 }
 
 
-async function closePositionDemo(pos) {
+async function closePositionDemo(pos, authHeaders) {
     // pos = { position: {...}, market: {...} }
     const p = pos.position;
     const m = pos.market;
@@ -178,32 +166,41 @@ async function closePositionDemo(pos) {
             currencyCode: p.currency || "USD",
             guaranteedStop: false
         },
-        { headers: { ...authHeaders(), VERSION: "2" } }
+        { headers: { ...authHeaders, VERSION: "2" } }
     );
 }
 
 
 /* -------------------- SCHEDULER -------------------- */
 
-function scheduleStopAll() {
+function scheduleStopAll(apiKey, username, password) {
     const now = new Date();
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
     const timeout = endOfDay.getTime() - now.getTime();
-    console.log(`⏰ stopAllTrades scheduled in ${Math.floor(timeout / 1000)} seconds`);
 
-    setTimeout(stopAllTrades, timeout);
+    setTimeout(async () => {
+        await login(apiKey, username, password);
+        stopAllTrades();
+    }, timeout);
 }
 
-async function confirmDeal(dealReference) {
+async function confirmDeal(dealReference, authHeaders) {
     const res = await axios.get(
         `${IG_BASE_URL}/confirms/${dealReference}`,
-        { headers: { ...authHeaders(), VERSION: "1" } }
+        { headers: { ...authHeaders, VERSION: "1" } }
     );
 
     return res.data;
 }
+
+
+// (async () => {
+//     const authHeaders = await login(config.igMarkets.apiKey, config.igMarkets.username, config.igMarkets.password);
+//     const account = await getAccount(config.igMarkets.accountID, authHeaders);
+//     console.log(account);
+// }) ();
 
 
 /* -------------------- EXPORTS -------------------- */

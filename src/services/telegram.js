@@ -36,20 +36,16 @@ if (!global._telegramBot) {
 bot = global._telegramBot;
 
 // ✅ Send message helper (safe)
-function sendTelegramMessage(text, options = {}) {
-  return bot.sendMessage(config.telegram.chatId, text, options);
-}
-
 function sendTelegramMessageID(text, options = {}, id) {
   return bot.sendMessage(id, text, options);
 }
 
-async function usersSender (text, options = {}) {
+async function telegramUsersSender (text, options = {}) {
   const snapshot = await getData("UserSettings");
   if (!snapshot) return
   snapshot.docs.map(doc => {
-    if (doc.data().telegramChecked === true) sendTelegramMessageID(doc.id); 
+    if (doc.data().telegramChecked === true) sendTelegramMessageID(text, options, doc.data().telegramChatId); 
   });
 }
 
-module.exports = { sendTelegramMessage, sendTelegramMessageID, usersSender };
+module.exports = { sendTelegramMessageID, telegramUsersSender };
