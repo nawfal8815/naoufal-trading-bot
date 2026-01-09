@@ -93,10 +93,5 @@ async function updateBalance () {
     await processAccounts();
 }
 
-(async () => {
-    accountsApproval();
-    updateBalance();
-})();
-
 
 module.exports = { executeTradeOnAllAccounts, accountsApproval, updateBalance }
