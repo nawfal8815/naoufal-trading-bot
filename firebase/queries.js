@@ -111,9 +111,9 @@ async function igMarketsundefiened(id) {
     try {
         const ref = db.collection("UserSettings").doc(id);
         const snapshot = await ref.get();
-        if (!snapshot.exists) return;
+        if (snapshot.size === 0) console.log(0);
         await ref.update({
-            igUndefiened: true
+            igUndefined: true
         });
     } catch (err) {
         console.error(err);

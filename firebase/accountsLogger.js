@@ -30,47 +30,73 @@ async function executeTradeOnAllAccounts(entryData) {
     })
 }
 
-async function accountsAproaval() {
-    const timeline = setInterval(async () => {
+async function accountsApproval() {
+    const processAccounts = async () => {
         const snapshot = await getData("UserSettings");
-        if (!snapshot.exists) return
-        snapshot.docs.map(async doc => {
+        if (snapshot.size === 0) return;
 
-            const igAccount = doc.data().igAccount;
-            if (doc.data().telegramChecked === false && doc.data().telegramChecked !== undefined && doc.data().telegramChatId) {
-                sendTelegramMessageID(`Checking Telegram chat ID`, { parse_mode: "Markdown" }, doc.data().telegramChatId);
-                telegramChecked(doc.id);
+        for (const doc of snapshot.docs) {
+            const data = doc.data();
+            const igAccount = data.igAccount;
+            // 1️⃣ Check Telegram
+            if (data.telegramChecked === false && data.telegramChecked !== undefined) {
+                sendTelegramMessageID(`Checking Telegram chat ID`, { parse_mode: "Markdown" }, data.telegramChatId);
+                await telegramChecked(doc.id);
             }
 
-            if (doc.data().igChecked === false && doc.data().igChecked !== undefined && doc.data().igAccount && !doc.data().igUndefiened) {
+            // 3️⃣ IG account not checked yet
+            if (data.igChecked === false && data.igChecked !== undefined && data.igUndefined === false && data.igUndefined !== undefined) {
                 try {
-                    await login(igAccount.apiKey, igAccount.username, igAccount.password);
-                    igMarketsChecked(doc.id);
+                    const authHeaders = await login(igAccount.apiKey, igAccount.username, igAccount.password);
+                    await getAccount(igAccount.accountID, authHeaders);
+                    await igMarketsChecked(doc.id);
                 } catch (err) {
-                    igMarketsundefiened(doc.id);
-                    return;
+                    console.log("Error checking IG account", doc.id);
+                    await igMarketsundefiened(doc.id);
                 }
             }
+        }
 
-            if (doc.data().igChecked) {
-                const authHeaders = await login(
-                    igAccount.apiKey,
-                    igAccount.username,
-                    igAccount.password
-                );
-                const account = await getAccount(
-                    igAccount.accountID,
-                    authHeaders
-                );
-                const balance = account.balance.balance;
-                await saveUserBalance(doc.id, balance);
-            }
-        })
+        // Schedule next run
+        setTimeout(processAccounts, 5000); // 5 seconds
+    };
 
-    }, 1000 * 5);
-
-
-
+    await processAccounts();
 }
 
-module.exports = { executeTradeOnAllAccounts, accountsAproaval }
+async function updateBalance () {
+    const processAccounts = async () => {
+        const snapshot = await getData("UserSettings");
+        if (snapshot.size === 0) return;
+
+        for (const doc of snapshot.docs) {
+            const data = doc.data();
+            const igAccount = data.igAccount;
+
+            // 2️⃣ IG account already checked
+            if (data.igChecked === true && data.igUndefined !== true) {
+                try {
+                    const authHeaders = await login(igAccount.apiKey, igAccount.username, igAccount.password);
+                    const account = await getAccount(igAccount.accountID, authHeaders);
+                    const balance = account.balance.balance;
+                    await saveUserBalance(doc.id, balance);
+                } catch (err) {
+                    console.log("Error updating balance for", doc.id);
+                }
+            }
+        }
+
+        // Schedule next run
+        setTimeout(processAccounts, 10 * 60 * 1000); // every 10 mins
+    };
+
+    await processAccounts();
+}
+
+(async () => {
+    accountsApproval();
+    updateBalance();
+})();
+
+
+module.exports = { executeTradeOnAllAccounts, accountsApproval, updateBalance }

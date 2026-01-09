@@ -7,7 +7,7 @@ const {  telegramUsersSender } = require("../services/telegram");
 const config = require("../../config/config");
 const { newsDecision } = require("../core/newsHandler");
 const { getNews } = require('../api/news');
-const { executeTradeOnAllAccounts, accountsAproaval } = require("../../firebase/accountsLogger");
+const { executeTradeOnAllAccounts, accountsApproval, updateBalance } = require("../../firebase/accountsLogger");
 const { monitorTrade } = require("../core/tradeMonitor");
 const { sleep } = require("../utils/sleep");
 const { postData } = require("../server/apiClient");
@@ -26,8 +26,9 @@ async function runStrategy() {
     //init collections
     await initCollections();
 
-    //start accounts confirmator timeline every 5 secs
-    accountsAproaval();
+    //start accounts confirmator timeline every 5 secs and balance getter every 10 mins
+    accountsApproval();
+    updateBalance();
 
     //set the timer to auto reexecute the strategie the next day
     const delay = await msUntilNextAsiaSession();

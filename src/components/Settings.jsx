@@ -182,8 +182,8 @@ export default function Settings() {
         }
 
         try {
-            await saveUserSettings(auth.currentUser.uid, { igAccount, igChecked: false, igUndefiened: false });
-            await new Promise(r => setTimeout(r, 6000));
+            await saveUserSettings(auth.currentUser.uid, { igAccount, igChecked: false, igUndefined: false });
+            await new Promise(r => setTimeout(r, 10000));
             const confirmation = await getUserIG(user.uid);
             if (confirmation.igChecked) {
                 setIgStatus({ type: "success", message: "IG account connected." });
