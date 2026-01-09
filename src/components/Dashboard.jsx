@@ -1,12 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { api } from "../server/frontendApi";
 import "../index.css";
 import MarketCanvas from "./MarketCanvas"
-import { signOut } from "firebase/auth";
 import { auth } from "../../firebase/firebase";
-import { getLatest } from "../../firebase/queries.client";
+import { getLatest, getUserIG, getLogs } from "../../firebase/queries.client";
 import UserMenu from "./UserMenu";
-// import getData from "../../firebase/queries";
+import config from "../../config/front-end/config";
 
 
 
@@ -16,21 +15,29 @@ export default function Dashboard() {
     const [candles, setCandles] = useState([]);
     const [loading, setLoading] = useState(true);
     const [userTimezone, setUserTimezone] = useState("");
+    const [igAccount, setIgAccount] = useState(null);
+    const [moneyAtRisk, setMoneyAtRisk] = useState(0);
+    const logsEndRef = useRef(null);
 
     useEffect(() => {
         let intervalId;
 
         const fetchDbData = async () => {
             try {
-                const [dailyInfo, news, livePrice] = await Promise.all([
+                const [dailyInfo, news, livePrice, logs, userInfo] = await Promise.all([
                     getLatest("Daily_Info"),
                     getLatest("News"),
-                    getLatest("Live_Price")
+                    getLatest("Live_Price"),
+                    getLogs("Logs"),
+                    getUserIG(auth.currentUser.uid)
                 ]);
 
-                setDbData({ dailyInfo, news, livePrice });
+                setDbData({ dailyInfo, news, livePrice, logs });
+                setIgAccount(userInfo.igAccount);
+                setMoneyAtRisk(userInfo.igAccount.balance * config.risk.perTrade);
             } catch (err) {
                 setDbData([]);
+                setIgAccount(null);
                 console.error("DB fetch failed:", err);
             }
         };
@@ -73,8 +80,24 @@ export default function Dashboard() {
         return () => clearInterval(intervalId);
     }, []);
 
+    const logsSnap = dbData?.logs?.snap ?? [];
 
+    const logs = logsSnap.map(doc => {
+        const data = doc.data();
+        return {
+            id: doc.id,
+            log: data.Log,
+            createdAt: data.createdAt?.toDate?.() ?? null
+        };
+    });
 
+    useEffect(() => {
+        if (!logs || logs.length === 0) return;
+
+        logsEndRef.current?.scrollIntoView({
+            behavior: "auto" // change to "smooth" if you want animation
+        });
+    }, [logs]);
 
     if (loading) {
         return (
@@ -178,15 +201,13 @@ export default function Dashboard() {
         return diffHours;
     }
 
-
-    const account = data.find(d => d.type === "accountDetails")?.account;
+    const fvgStatus = data.find(d => d.type === "fvgStatus")?.status;
     const timezone = data.find(d => d.type === "timezone")?.timezone;
     const offsetHours = getTimeDifference(userTimezone, timezone);
 
     const dailyInfo = dbData?.dailyInfo;
     const newsDoc = dbData?.news;
     const livePriceDoc = dbData?.livePrice;
-
     const signal = dailyInfo?.bias
         ? { potential: dailyInfo.bias }
         : null;
@@ -214,7 +235,7 @@ export default function Dashboard() {
         }
         : null;
 
-    if (!account && !signal && !news && !candles) {
+    if (!signal && !news && !candles) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-[#0b0f14]">
                 <div className="text-gray-300 text-lg font-semibold tracking-wide">
@@ -253,72 +274,124 @@ export default function Dashboard() {
                 </div>
 
                 {/* ACCOUNT / BIAS / QUALITY */}
-                <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-5 grid grid-cols-1 md:grid-cols-3 gap-6">
-
-                    <div>
-                        <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-2">
-                            Account
-                        </h3>
-                        {account?.accountID ? (
-                            <div>
-                                <p>ID: <span className="font-semibold">{account.accountID}</span></p>
-                                <p>Balance: <span className="font-semibold">${account.balance}</span></p>
-                                <p>Risk: <span className="font-semibold">${account.moneyAtRisk}</span></p>
-                            </div>
-                        ) : <p className="font-semibold">No account Data...</p>}
-                    </div>
-
-                    <div>
-                        <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-2">
-                            Daily Bias
-                        </h3>
-                        {signal?.potential ? (
-                            <div className={`text-4xl font-extrabold ${signal.potential.toLowerCase() === "buy"
-                                ? "text-teal-400"
-                                : signal.potential.toLowerCase() === "sell"
-                                    ? "text-rose-400"
-                                    : "text-gray-400"
-                                }`}>
-                                {signal.potential.toUpperCase()}
-                            </div>
-                        ) : <div className="text-1xl font-extrabold">
-                            No signal data...
-                        </div>}
-                    </div>
-
-                    {percentage ? (
-                        <div>
-                            <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-3">
-                                Trade Quality
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* IG ACCOUNT CARD */}
+                    <div className="bg-[#0f141b] border border-[#1f2933] rounded-xl p-5 shadow-sm">
+                        <div className="space-y-5">
+                            <h3 className="text-xs uppercase tracking-widest text-gray-400">
+                                IG Markets Account
                             </h3>
+                            {/* BALANCE */}
+                            <div>
+                                <p className="text-xs text-gray-400 mb-1">Available Balance</p>
+                                <p className="text-3xl font-extrabold text-teal-400 tracking-wide">
+                                    ${igAccount.balance}
+                                </p>
+                            </div>
 
-                            <div className="flex items-center gap-4">
-                                {/* Ring */}
-                                <div
-                                    className="relative w-20 h-20 rounded-full flex items-center justify-center"
-                                    style={{
-                                        background: percentage >= 60 ?
-                                            `conic-gradient(#2dd4bf ${percentage * 3.6}deg, #1f2933 0deg)`
-                                            : `conic-gradient(#fb7185 ${percentage * 3.6}deg, #1f2933 0deg)`
-                                    }}
-                                >
-                                    <div className="absolute w-14 h-14 rounded-full bg-[#11161d] flex items-center justify-center">
-                                        <span className="text-xl font-extrabold">
-                                            {tradeGrade}
-                                        </span>
-                                    </div>
+                            {/* DETAILS */}
+                            <div className="grid grid-cols-2 gap-y-3 text-sm">
+                                <div>
+                                    <p className="text-gray-400">Account ID</p>
+                                    <p className="font-semibold text-gray-200">
+                                        {igAccount.accountID}
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <p className="text-gray-400">Risk / Trade</p>
+                                    <p className="font-semibold text-amber-400">
+                                        ${moneyAtRisk}
+                                    </p>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                    {/* DAILY BIAS CARD */}
+                    <div className="bg-[#0f141b] border border-[#1f2933] rounded-xl p-5 shadow-sm flex flex-col justify-center">
+                        <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-3">
+                            Daily Bias
+                        </h3>
 
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-4">
-                            <span className="text-xl font-extrabold">
-                                No percentage data...
-                            </span>
-                        </div>
-                    )}
+                        {signal?.potential ? (
+                            <div
+                                className={`text-center text-5xl font-extrabold tracking-wide ${signal.potential.toLowerCase() === "buy"
+                                    ? "text-teal-400"
+                                    : signal.potential.toLowerCase() === "sell"
+                                        ? "text-rose-400"
+                                        : "text-gray-400"
+                                    }`}
+                            >
+                                {signal.potential.toUpperCase()}
+                                <p className="text-xs text-gray-500 tracking-wide mt-5">
+                                    Higher timeframe direction
+                                </p>
+                            </div>
+
+                        ) : (
+                            <div className="text-center text-gray-400 font-semibold">
+                                No bias data
+                            </div>
+                        )}
+                    </div>
+
+                    {/* TRADE QUALITY CARD */}
+                    <div className="bg-[#0f141b] border border-[#1f2933] rounded-xl p-5 shadow-sm">
+                        <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-4">
+                            Trade Quality
+                        </h3>
+
+                        {percentage ? (
+                            <div className="flex items-start gap-5">
+
+                                {/* RING + STATUS COLUMN */}
+                                <div className="flex flex-col items-center gap-3">
+
+                                    {/* RING CONTAINER */}
+                                    <div className="flex items-center justify-center w-24 h-24 rounded-full bg-[#0b1016] border border-[#1f2933] shadow-inner">
+                                        <div
+                                            className="relative w-20 h-20 rounded-full flex items-center justify-center"
+                                            style={{
+                                                background:
+                                                    percentage >= 60
+                                                        ? `conic-gradient(#2dd4bf ${percentage * 3.6}deg, #1f2933 0deg)`
+                                                        : `conic-gradient(#fb7185 ${percentage * 3.6}deg, #1f2933 0deg)`
+                                            }}
+                                        >
+                                            <div className="absolute w-14 h-14 rounded-full bg-[#0f141b] flex items-center justify-center shadow-md">
+                                                <span className="text-xl font-extrabold text-white">
+                                                    {tradeGrade}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* FVG STATUS UNDER RING */}
+                                    {fvgStatus && (
+                                        <div className="text-center">
+                                            <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">
+                                                FVG Status
+                                            </p>
+                                            <p className="text-sm font-semibold text-teal-400 leading-snug">
+                                                {fvgStatus}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                </div>
+
+
+                            </div>
+                        ) : (
+                            <p className="text-gray-400 font-semibold">
+                                No trade quality data
+                            </p>
+                        )}
+
+                    </div>
+
                 </div>
+
 
                 {/* NEWS */}
                 <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-5">
@@ -452,6 +525,80 @@ export default function Dashboard() {
                                 No Fair Value Gap data...
                             </h2>
                         </div>}
+
+                        {logs && logs.length > 0 ? (
+                            <div className="
+                                    bg-gradient-to-b from-[#11161d] to-[#0d1218]
+                                    border border-[#1f2933]
+                                    rounded-xl
+                                    p-4
+                                    shadow-[0_0_0_1px_rgba(255,255,255,0.02),0_10px_30px_rgba(0,0,0,0.4)]
+                                ">
+                                <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-3">
+                                    Logs
+                                </h2>
+
+                                {/* SCROLL CONTAINER */}
+                                <div className="
+                                        h-56
+                                        w-full
+                                        overflow-y-auto
+                                        rounded-lg
+                                        bg-[#0b0f14]
+                                        border border-[#1f2933]
+                                        p-3
+                                        space-y-3
+                                        text-sm
+                                        font-mono
+                                    ">
+
+                                    {logs.map((entry, i) => {
+                                        const date = entry.createdAt instanceof Date
+                                            ? entry.createdAt
+                                            : entry.createdAt.toDate();
+
+                                        return (
+                                            <div
+                                                key={i}
+                                                className="border-b border-[#1f2933] pb-2 last:border-none"
+                                            >
+                                                <div className="text-[11px] text-gray-500 mb-1">
+                                                    {entry.createdAt
+                                                        ? entry.createdAt.toLocaleString(undefined, {
+                                                            year: "numeric",
+                                                            month: "short",
+                                                            day: "2-digit",
+                                                            hour: "2-digit",
+                                                            minute: "2-digit",
+                                                            second: "2-digit"
+                                                        })
+                                                        : "—"}
+                                                    <div className="text-gray-200 leading-relaxed">
+                                                        {entry.log}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                    <div ref={logsEndRef} />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="
+                                    bg-[#11161d]
+                                    border border-[#1f2933]
+                                    rounded-xl
+                                    p-4
+                                ">
+                                <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-2">
+                                    Logs
+                                </h2>
+                                <p className="text-sm text-gray-500 italic">
+                                    No logs data available…
+                                </p>
+                            </div>
+                        )}
+
                     </div>
                 </div>
 
@@ -459,3 +606,4 @@ export default function Dashboard() {
         </div>
     );
 }
+

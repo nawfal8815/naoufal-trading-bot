@@ -75,7 +75,7 @@ export async function saveUserSettings(uid, newSettings) {
     }
 }
 
-export async function getUserIGCheck(uid, colName = "UserSettings") {
+export async function getUserIG(uid, colName = "UserSettings") {
     if (!uid) throw new Error("No user ID provided");
 
     try {
@@ -85,11 +85,25 @@ export async function getUserIGCheck(uid, colName = "UserSettings") {
         if (!docSnap.exists()) return false;
 
         const data = docSnap.data();
-        return data.igChecked;
+        return { igChecked: data.igChecked, igAccount: data.igAccount };
     } catch (err) {
         console.error("Failed to fetch user info:", err);
         return false;
     }
+}
+
+export async function getLogs(colName = "Logs") {
+    const q = query(
+        collection(db, colName),
+        orderBy("createdAt", "asc")
+    );
+
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+
+    return {
+        snap: snap.docs
+    };
 }
 
 

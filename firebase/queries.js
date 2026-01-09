@@ -120,4 +120,21 @@ async function igMarketsundefiened(id) {
     }
 }
 
-module.exports = { saveLog, saveDailyInfo, saveLivePrice, saveNews, savePosition, getData, telegramChecked, igMarketsChecked, igMarketsundefiened };
+async function saveUserBalance(uid, balance) {
+    try {
+        const ref = db.collection("UserSettings").doc(uid);
+        const snapshot = await ref.get();
+
+        if (!snapshot.exists) return;
+
+        await ref.update({
+            "igAccount.balance": balance,
+            "igAccount.balanceUpdatedAt": admin.firestore.FieldValue.serverTimestamp()
+        });
+    } catch (err) {
+        console.error("Failed to save user balance:", err);
+    }
+}
+
+
+module.exports = { saveLog, saveDailyInfo, saveLivePrice, saveNews, savePosition, getData, telegramChecked, igMarketsChecked, igMarketsundefiened, saveUserBalance };

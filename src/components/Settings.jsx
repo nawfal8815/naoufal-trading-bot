@@ -6,7 +6,7 @@ import {
     EmailAuthProvider,
     onAuthStateChanged
 } from "firebase/auth";
-import { saveUserSettings, getUserInfo, getUserIGCheck } from "../../firebase/queries.client";
+import { saveUserSettings, getUserInfo, getUserIG } from "../../firebase/queries.client";
 import { FaUserCircle, FaArrowLeft } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
@@ -176,6 +176,7 @@ export default function Settings() {
 
         const missing = Object.entries(igAccount).filter(([_, v]) => !v).map(([k]) => k);
         if (missing.length) {
+            setIgLoading(false);
             setIgStatus({ type: "error", message: "All IG account fields are required." });
             return;
         }
@@ -183,8 +184,8 @@ export default function Settings() {
         try {
             await saveUserSettings(auth.currentUser.uid, { igAccount, igChecked: false, igUndefiened: false });
             await new Promise(r => setTimeout(r, 6000));
-            const confirmation = await getUserIGCheck(user.uid);
-            if (confirmation) {
+            const confirmation = await getUserIG(user.uid);
+            if (confirmation.igChecked) {
                 setIgStatus({ type: "success", message: "IG account connected." });
                 setIgAccount({
                     apiKey: "",
@@ -194,7 +195,7 @@ export default function Settings() {
                     accountType: "CFD"
                 });
             }
-            else setIgStatus({ type: "error", message: "IG account data is not valid." });
+            else setIgStatus({ type: "error", message: "IG account data is not valid or server problem." });
         } catch (err) {
             console.log(err);
         } finally {

@@ -136,7 +136,13 @@ async function runStrategy() {
             { parse_mode: "Markdown" }
         );
         console.log("Closest Virgin FVG for signal:", fvg);
-        await saveLog("Closest Virgin FVG for signal: " + fvg);
+        await saveLog(`📊 *Closest Virgin FVG*
+            Type: ${fvg.type}
+            Created At: ${fvg.createdAt}
+            Gap Low: ${fvg.gapLow}
+           Gap High: ${fvg.gapHigh}
+            Virgin: ${fvg.fullVirgin ? "Full" : "50%"}
+            `);
 
         await sleep(2000); // brief pause before proceeding
 

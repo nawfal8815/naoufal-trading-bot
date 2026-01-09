@@ -1,4 +1,4 @@
-const { getData, telegramChecked, igMarketsChecked, igMarketsundefiened } = require('./queries');
+const { getData, telegramChecked, igMarketsChecked, igMarketsundefiened, saveUserBalance } = require('./queries');
 const { login, getAccount, executeTrade, scheduleStopAll } = require("../src/services/igMarkets");
 const { getLotsize } = require('../src/core/riskManager');
 const { sendTelegramMessageID } = require('../src/services/telegram');
@@ -33,21 +33,37 @@ async function executeTradeOnAllAccounts(entryData) {
 async function accountsAproaval() {
     const timeline = setInterval(async () => {
         const snapshot = await getData("UserSettings");
+        if (!snapshot.exists) return
         snapshot.docs.map(async doc => {
+
+            const igAccount = doc.data().igAccount;
             if (doc.data().telegramChecked === false && doc.data().telegramChecked !== undefined && doc.data().telegramChatId) {
                 sendTelegramMessageID(`Checking Telegram chat ID`, { parse_mode: "Markdown" }, doc.data().telegramChatId);
                 telegramChecked(doc.id);
             }
+
             if (doc.data().igChecked === false && doc.data().igChecked !== undefined && doc.data().igAccount && !doc.data().igUndefiened) {
                 try {
-                    const igAccount = doc.data().igAccount;
                     await login(igAccount.apiKey, igAccount.username, igAccount.password);
                     igMarketsChecked(doc.id);
                 } catch (err) {
                     igMarketsundefiened(doc.id);
                     return;
                 }
+            }
 
+            if (doc.data().igChecked) {
+                const authHeaders = await login(
+                    igAccount.apiKey,
+                    igAccount.username,
+                    igAccount.password
+                );
+                const account = await getAccount(
+                    igAccount.accountID,
+                    authHeaders
+                );
+                const balance = account.balance.balance;
+                await saveUserBalance(doc.id, balance);
             }
         })
 

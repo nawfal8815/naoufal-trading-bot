@@ -4,12 +4,16 @@ const { fetchLatestClosedCandle } = require('../api/dataFeed');
 const { is15MinBoundary } = require('../utils/date');
 const { isRanged } = require("../core/RangeDetector");
 const { postData } = require('../server/apiClient');
+const { saveLivePrice } = require('../../firebase/queries');
 
 async function monitorFVG({ fvg, signal }) {
     if (!fvg) return { status: "expired" };
     let messageDisplayed = false;
     console.log("⏳ Waiting for price to enter FVG...");
-
+    await postData({
+        type: "fvgStatus",
+        status: "⏳ Waiting for price to enter FVG...",
+    });
     const startTime = Date.now();
     const maxWait = 1000 * 60 * 60 * 10; // max 10 hours of monitoring
 
@@ -18,6 +22,10 @@ async function monitorFVG({ fvg, signal }) {
         const priceData = await isPriceInFVG(fvg, signal);
         if (priceData.inFVG) {
             console.log("🎯 Price entered FVG:", priceData.candle);
+            await postData({
+                type: "fvgStatus",
+                status: "🎯 Price entered FVG: " + priceData.candle
+            });
             // const rangeDetector = await isRanged(fvg, candles);
             // if (!rangeDetector) {
             //     console.log("Market is not ranged, skipping trade. High risk setup...");
@@ -27,6 +35,10 @@ async function monitorFVG({ fvg, signal }) {
 
         if (Date.now() - startTime > maxWait) {
             console.log("⏱ FVG touch timeout");
+            await postData({
+                type: "fvgStatus",
+                status: "⏱ FVG touch timeout"
+            });
             return { status: "expired" };
         }
 
@@ -39,6 +51,10 @@ async function monitorFVG({ fvg, signal }) {
     }
 
     console.log("📊 Monitoring candles inside FVG...");
+    await postData({
+        type: "fvgStatus",
+        status: "📊 Monitoring candles inside FVG..."
+    });
 
     // ---- PHASE 2 + 3: candle logic ----
     while (true) {
@@ -55,21 +71,27 @@ async function monitorFVG({ fvg, signal }) {
             continue;
         }
 
-        await postData({
-            type: "livePrice",
-            timestamp: new Date().toISOString(),
+        await saveLivePrice({
             price: candle.close
         });
 
         // ❌ FVG invalidation
         if (isFVGExpired(candle, fvg, signal.potential)) {
             console.log("❌ FVG expired by candle close:", candle.close);
+            await postData({
+                type: "fvgStatus",
+                status: "❌ FVG expired by candle close: " + candle.close
+            });
             return { status: "expired" };
         }
 
         // ✅ Confirmation
         if (isConfirmationCandle(candle, signal.potential)) {
             console.log("✅ Confirmation candle detected!");
+            await postData({
+                type: "fvgStatus",
+                status: "✅ Confirmation candle detected!"
+            });
             return {
                 status: "confirmed",
                 entryCandle: candle
