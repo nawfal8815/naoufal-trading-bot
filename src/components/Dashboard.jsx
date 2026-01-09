@@ -24,21 +24,29 @@ export default function Dashboard() {
 
         const fetchDbData = async () => {
             try {
-                const [dailyInfo, news, livePrice, logs, userInfo] = await Promise.all([
+                const [dailyInfo, news, livePrice, logs] = await Promise.all([
                     getLatest("Daily_Info"),
                     getLatest("News"),
                     getLatest("Live_Price"),
-                    getLogs("Logs"),
-                    getUserIG(auth.currentUser.uid)
+                    getLogs("Logs")
                 ]);
 
                 setDbData({ dailyInfo, news, livePrice, logs });
-                setIgAccount(userInfo.igAccount);
-                setMoneyAtRisk(userInfo.igAccount.balance * config.risk.perTrade);
             } catch (err) {
                 setDbData([]);
-                setIgAccount(null);
                 console.error("DB fetch failed:", err);
+            }
+        };
+
+        const fetchIGData = async () => {
+            try {
+                const userInfo = await getUserIG(auth.currentUser.uid)
+                setIgAccount(userInfo.igAccount || null);
+                setMoneyAtRisk(userInfo.igAccount.balance * config.risk.perTrade || 0);
+            } catch (err) {
+                setIgAccount(null);
+                setMoneyAtRisk(0);
+                console.error("IG fetch failed:", err);
             }
         };
 
@@ -62,7 +70,8 @@ export default function Dashboard() {
             try {
                 await Promise.allSettled([
                     fetchDbData(),
-                    fetchApiData()
+                    fetchApiData(),
+                    fetchIGData()
                 ]);
             } finally {
                 setLoading(false);
@@ -276,37 +285,43 @@ export default function Dashboard() {
                 {/* ACCOUNT / BIAS / QUALITY */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* IG ACCOUNT CARD */}
+
                     <div className="bg-[#0f141b] border border-[#1f2933] rounded-xl p-5 shadow-sm">
                         <div className="space-y-5">
                             <h3 className="text-xs uppercase tracking-widest text-gray-400">
                                 IG Markets Account
                             </h3>
                             {/* BALANCE */}
-                            <div>
-                                <p className="text-xs text-gray-400 mb-1">Available Balance</p>
-                                <p className="text-3xl font-extrabold text-teal-400 tracking-wide">
-                                    ${igAccount.balance}
-                                </p>
-                            </div>
+                            {igAccount !== null ?
+                                <>
+                                    <div>
+                                        <p className="text-xs text-gray-400 mb-1">Available Balance</p>
+                                        <p className="text-3xl font-extrabold text-teal-400 tracking-wide">
+                                            ${igAccount.balance}
+                                        </p>
+                                    </div>
 
-                            {/* DETAILS */}
-                            <div className="grid grid-cols-2 gap-y-3 text-sm">
-                                <div>
-                                    <p className="text-gray-400">Account ID</p>
-                                    <p className="font-semibold text-gray-200">
-                                        {igAccount.accountID}
-                                    </p>
-                                </div>
+                                    {/* DETAILS */}
+                                    <div className="grid grid-cols-2 gap-y-3 text-sm">
+                                        <div>
+                                            <p className="text-gray-400">Account ID</p>
+                                            <p className="font-semibold text-gray-200">
+                                                {igAccount.accountID}
+                                            </p>
+                                        </div>
 
-                                <div>
-                                    <p className="text-gray-400">Risk / Trade</p>
-                                    <p className="font-semibold text-amber-400">
-                                        ${moneyAtRisk}
-                                    </p>
-                                </div>
-                            </div>
+                                        <div>
+                                            <p className="text-gray-400">Risk / Trade</p>
+                                            <p className="font-semibold text-amber-400">
+                                                ${moneyAtRisk}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </>
+                                : <p className="text-xs text-gray-400 mb-1">No IG Markets data...</p>}
                         </div>
                     </div>
+
                     {/* DAILY BIAS CARD */}
                     <div className="bg-[#0f141b] border border-[#1f2933] rounded-xl p-5 shadow-sm flex flex-col justify-center">
                         <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-3">
