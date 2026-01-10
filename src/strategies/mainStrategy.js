@@ -28,6 +28,10 @@ async function runStrategy() {
     //init collections
     await initCollections();
 
+    //start accounts confirmator timeline every 5 secs and balance getter every 10 mins
+    accountsApproval();
+    updateBalance();
+
     // set Timezone
     config.timezone = await setTimeZone();
     if (config.timezone != "") {
@@ -50,11 +54,6 @@ async function runStrategy() {
         tradesToday = 0;
         return;
     }
-
-
-    //start accounts confirmator timeline every 5 secs and balance getter every 10 mins
-    accountsApproval();
-    updateBalance();
 
     // update latest candle and live price
     updateCandlesData();
