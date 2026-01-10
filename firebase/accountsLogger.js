@@ -48,8 +48,10 @@ async function accountsApproval() {
             if (data.igChecked === false && data.igChecked !== undefined && data.igUndefined === false && data.igUndefined !== undefined) {
                 try {
                     const authHeaders = await login(igAccount.apiKey, igAccount.username, igAccount.password);
-                    await getAccount(igAccount.accountID, authHeaders);
+                    const account = await getAccount(igAccount.accountID, authHeaders);
                     await igMarketsChecked(doc.id);
+                    const balance = account.balance.balance;
+                    await saveUserBalance(doc.id, balance);
                 } catch (err) {
                     console.log("Error checking IG account", doc.id);
                     await igMarketsundefiened(doc.id);
@@ -58,7 +60,7 @@ async function accountsApproval() {
         }
 
         // Schedule next run
-        setTimeout(processAccounts, 5000); // 5 seconds
+        setTimeout(processAccounts, 5 * 1000); // 5 seconds
     };
 
     await processAccounts();
