@@ -18,6 +18,7 @@ export default function Dashboard() {
     const [igAccount, setIgAccount] = useState(null);
     const [moneyAtRisk, setMoneyAtRisk] = useState(0);
     const logsEndRef = useRef(null);
+    const [showGuide, setShowGuide] = useState(false);
 
     useEffect(() => {
         let intervalId;
@@ -244,7 +245,11 @@ export default function Dashboard() {
         }
         : null;
 
-    if (!signal && !news && !candles) {
+    const today = new Date();
+    const day = today.getDay(); // 0 = Sunday, 6 = Saturday
+    const isWeekend = day === 0 || day === 6;
+
+    if (!signal && !fvg && !candles) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-[#0b0f14]">
                 <div className="text-gray-300 text-lg font-semibold tracking-wide">
@@ -281,6 +286,29 @@ export default function Dashboard() {
                     </div>
 
                 </div>
+
+                {isWeekend && (
+                    <div className="
+                            flex
+                            justify-center
+                            items-center
+                            text-center
+                            border-b
+                            border-[#1f2933]
+                            pb-4
+                        ">
+                        <h1 className="
+                                text-2xl
+                                font-extrabold
+                                tracking-wide
+                                text-rose-400
+                            ">
+                            No trading in the weekend, this data is for the next Monday!
+                        </h1>
+                    </div>
+                )}
+
+
 
                 {/* ACCOUNT / BIAS / QUALITY */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -613,6 +641,110 @@ export default function Dashboard() {
                                 </p>
                             </div>
                         )}
+
+                        {/* GUIDANCE BUTTON */}
+                        <button
+                            onClick={() => setShowGuide(true)}
+                            className="
+        fixed
+        bottom-6
+        right-6
+        z-50
+        w-14
+        h-14
+        rounded-full
+        bg-teal-500
+        text-white
+        text-2xl
+        font-bold
+        shadow-lg
+        hover:bg-teal-400
+        transition
+        flex
+        items-center
+        justify-center
+    "
+                            aria-label="Guidance"
+                        >
+                            ?
+                        </button>
+
+                        {/* GUIDANCE MODAL */}
+                        {showGuide && (
+                            <div
+                                className="
+            fixed
+            inset-0
+            z-50
+            bg-black/50
+            flex
+            items-end
+            sm:items-center
+            justify-center
+        "
+                                onClick={() => setShowGuide(false)}
+                            >
+                                <div
+                                    className="
+                bg-[#0f141b]
+                border
+                border-[#1f2933]
+                rounded-t-xl
+                sm:rounded-xl
+                p-6
+                w-full
+                sm:max-w-md
+                text-gray-200
+                shadow-2xl
+            "
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    {/* HEADER */}
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h2 className="text-lg font-extrabold tracking-wide">
+                                            How This Bot Works
+                                        </h2>
+                                        <button
+                                            onClick={() => setShowGuide(false)}
+                                            className="text-gray-400 hover:text-gray-200 text-xl"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+
+                                    {/* CONTENT */}
+                                    <div className="space-y-4 text-sm leading-relaxed">
+                                        <p>
+                                            <span className="font-semibold text-teal-400">Trading Strategy</span><br />
+                                            This bot uses the <span className="font-semibold">Virgin Fair Value Gaps (FVG)</span> strategy
+                                            to trade the <span className="font-semibold">EUR/USD</span> pair.<br />
+                                            <span className="font-semibold">1- </span>Get the bias and FVG data then wait for the price to enter its range.<br />
+                                            <span className="font-semibold">2- </span>Monitor the price in FVG and get a confirmation candle.<br />
+                                            <span className="font-semibold">3- </span>Execute.
+                                        </p>
+                                        <p>
+                                            <span className="font-semibold text-teal-400">Daily Bias</span><br />
+                                            The trading bias is determined using the
+                                            <span className="font-semibold"> last two daily candles</span>
+                                            {' '}to define higher-timeframe direction.
+                                        </p>
+
+                                        <p>
+                                            <span className="font-semibold text-teal-400">FVG Detection</span><br />
+                                            The bot identifies the <span className="font-semibold">closest Fair Value Gap</span>.
+                                            If <span className="font-semibold">half of the FVG is filled</span>,
+                                            it is treated as non-virgin and used only 50% of it.
+                                        </p>
+                                    </div>
+
+                                    {/* FOOTER */}
+                                    <div className="mt-6 text-xs text-gray-500 italic">
+                                        This guidance is informational and does not guarantee performance.
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
 
                     </div>
                 </div>

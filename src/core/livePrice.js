@@ -1,12 +1,7 @@
-const { saveLivePrice } = require('../../firebase/queries');
 const { fetchLatestClosedCandle } =  require('../api/dataFeed');
 
 async function isPriceInFVG(fvg, signal) {
     const candle = await fetchLatestClosedCandle();
-    await saveLivePrice({
-        price: candle.close
-    });
-    // console.log("Current Live EUR/USD Price:", price);
     if (priceInFVG(candle, fvg, signal)) {
         return { candle: candle, inFVG: true };
     } else {

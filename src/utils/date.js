@@ -1,5 +1,3 @@
-const { config } = require("dotenv");
-
 function is15MinBoundary(date = new Date()) {
     const minutes = date.getMinutes();
     const seconds = date.getSeconds();

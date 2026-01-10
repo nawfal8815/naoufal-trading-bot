@@ -2,7 +2,6 @@ const { isPriceInFVG } = require('./livePrice');
 const { sleep } = require('../utils/sleep');
 const { fetchLatestClosedCandle } = require('../api/dataFeed');
 const { is15MinBoundary } = require('../utils/date');
-const { isRanged } = require("../core/RangeDetector");
 const { postData } = require('../server/apiClient');
 const { saveLivePrice } = require('../../firebase/queries');
 
@@ -26,10 +25,6 @@ async function monitorFVG({ fvg, signal }) {
                 type: "fvgStatus",
                 status: "🎯 Price entered FVG: " + priceData.candle
             });
-            // const rangeDetector = await isRanged(fvg, candles);
-            // if (!rangeDetector) {
-            //     console.log("Market is not ranged, skipping trade. High risk setup...");
-            // } else console.log("Market is ranged");
             break;
         }
 

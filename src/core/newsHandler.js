@@ -53,7 +53,12 @@ function buildTradingRules(classifiedEvents) {
 
 async function newsDecision(events) {
     if (events.length === 0) {
-        return 0;
+        return {
+            skipDay: false,
+            blockTimes: [],
+            warnTimes: [],
+            decision: '✅ No news today'
+        };
     }
     const classified = classifyNews(events);
     return buildTradingRules(classified);

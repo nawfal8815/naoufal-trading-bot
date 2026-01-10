@@ -25,13 +25,8 @@ app.post("/api/data", (req, res) => {
 
   // Types that should only exist once
   const singletonTypes = [
-    "livePrice",
-    "signal",
-    "accountDetails",
-    "fvg",
     "timezone",
-    "news",
-    "events"
+    "fvgStatus"
   ];
 
   if (singletonTypes.includes(incoming.type)) {
@@ -44,8 +39,51 @@ app.post("/api/data", (req, res) => {
 });
 
 app.post("/api/data/candles", (req, res) => {
-  candles = [];
-  candles.push(req.body);
+  const incoming = req.body?.candles;
+
+  if (!Array.isArray(incoming) || incoming.length === 0) {
+    return res.status(400).json({ error: "candles must be a non-empty array" });
+  }
+
+  const serverHasCandles = candles.length > 0;
+  const incomingIsSingle = incoming.length === 1;
+  const incomingIsMultiple = incoming.length > 1;
+
+  // ❌ Server empty + single candle → ignore
+  if (!serverHasCandles && incomingIsSingle) {
+    return res.status(200).json({
+      ok: true,
+      ignored: true,
+      reason: "No existing candles"
+    });
+  }
+
+  // 🔄 Incoming multiple candles → reset & replace
+  if (incomingIsMultiple) {
+    candles = [...incoming];
+    return res.status(200).json({
+      ok: true,
+      replaced: true,
+      count: candles.length
+    });
+  }
+
+  // ➕ Server has candles + single candle → append
+  if (serverHasCandles && incomingIsSingle) {
+    const candle = incoming[0];
+
+    // Optional dedupe by datetime
+    if (!candles.some(c => c.datetime === candle.datetime)) {
+      candles.push(candle);
+    }
+
+    return res.status(200).json({
+      ok: true,
+      appended: true,
+      count: candles.length
+    });
+  }
+
   res.status(200).json({ ok: true });
 });
 

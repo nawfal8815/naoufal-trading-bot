@@ -66,8 +66,6 @@ export async function saveUserSettings(uid, newSettings) {
 
         // Save merged settings
         await setDoc(userRef, mergedSettings, { merge: true });
-
-        console.log("User settings saved:");
         return true;
     } catch (err) {
         console.error("Error saving user settings:", err);
@@ -105,32 +103,4 @@ export async function getLogs(colName = "Logs") {
         snap: snap.docs
     };
 }
-
-
-// export async function saveUserSettings(uid, newSettings) {
-//     if (!uid) throw new Error("No user ID provided");
-
-//     try {
-//         const userRef = doc(db, "UserSettings", uid);
-//         const docSnap = await getDoc(userRef);
-
-//         let mergedSettings = {};
-
-//         if (docSnap.exists()) {
-//             // Merge existing data with new settings
-//             mergedSettings = { ...docSnap.data(), ...newSettings };
-//         } else {
-//             mergedSettings = { ...newSettings };
-//         }
-
-//         // Save merged settings
-//         await setDoc(userRef, mergedSettings, { merge: true });
-
-//         console.log("User settings saved:");
-//         return true;
-//     } catch (err) {
-//         console.error("Error saving user settings:", err);
-//         return false;
-//     }
-// }
 

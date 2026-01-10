@@ -33,7 +33,7 @@ async function executeTradeOnAllAccounts(entryData) {
 async function accountsApproval() {
     const processAccounts = async () => {
         const snapshot = await getData("UserSettings");
-        if (snapshot.size === 0) return;
+        if (!snapshot.size) return;
 
         for (const doc of snapshot.docs) {
             const data = doc.data();
@@ -67,7 +67,7 @@ async function accountsApproval() {
 async function updateBalance () {
     const processAccounts = async () => {
         const snapshot = await getData("UserSettings");
-        if (snapshot.size === 0) return;
+        if (!snapshot.size) return;
 
         for (const doc of snapshot.docs) {
             const data = doc.data();

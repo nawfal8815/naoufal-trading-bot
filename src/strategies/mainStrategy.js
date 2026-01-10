@@ -3,7 +3,7 @@ const { getEntryData, confirmationTimeChecker } = require("../core/riskManager")
 const signalBuilder = require("../core/signalBuilder");
 const { monitorFVG } = require("../core/fvgMonitor");
 const { sleepUntilNextAsiaSession, msUntilNextAsiaSession } = require("../utils/sleepUntilNextAsiaSession");
-const {  telegramUsersSender } = require("../services/telegram");
+const { telegramUsersSender } = require("../services/telegram");
 const config = require("../../config/config");
 const { newsDecision } = require("../core/newsHandler");
 const { getNews } = require('../api/news');
@@ -14,6 +14,7 @@ const { postData } = require("../server/apiClient");
 const { setTimeZone, checkIfWeekend } = require("../utils/date");
 const { initCollections } = require('../../firebase/initCollections');
 const { saveLog, saveDailyInfo, saveNews, savePosition } = require('../../firebase/queries');
+const { updateCandlesData, updatePriceData } = require('../utils/candlesUpdater');
 
 let strategyRunning = false; // prevent overlapping runs
 let tradesToday = 0;
@@ -23,12 +24,28 @@ async function runStrategy() {
     if (strategyRunning) return;
     strategyRunning = true;
 
+    
     //init collections
     await initCollections();
+
+    //check if its weekend
+    if (await checkIfWeekend()) {
+        console.log("Weekend — no trading 🚫");
+        await saveLog("Weekend — no trading 🚫");
+        await sleepUntilNextAsiaSession();
+        strategyRunning = false;
+        tradesToday = 0;
+        return;
+    }
+
 
     //start accounts confirmator timeline every 5 secs and balance getter every 10 mins
     accountsApproval();
     updateBalance();
+
+    // update latest candle and live price
+    updateCandlesData();
+    updatePriceData();
 
     //set the timer to auto reexecute the strategie the next day
     const delay = await msUntilNextAsiaSession();
@@ -40,15 +57,6 @@ async function runStrategy() {
         return;
     }, delay);
 
-    //check if its weekend
-    if (await checkIfWeekend()) {
-        console.log("Weekend — no trading 🚫");
-        await saveLog("Weekend — no trading 🚫");
-        await sleepUntilNextAsiaSession();
-        strategyRunning = false;
-        tradesToday = 0;
-        return;
-    }
 
     // set Timezone
     config.timezone = await setTimeZone();
@@ -75,7 +83,7 @@ async function runStrategy() {
             events: events
         }
         await saveNews(newsDB);
-        if (newsRules != 0 && newsRules.skipDay) {
+        if (newsRules.skipDay) {
             telegramUsersSender(
                 `⚠️ *Trading Skipped Today*
                 High impact news events detected for ${config.symbol}. No trades will be taken today.
