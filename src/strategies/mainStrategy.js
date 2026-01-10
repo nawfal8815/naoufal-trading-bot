@@ -28,6 +28,19 @@ async function runStrategy() {
     //init collections
     await initCollections();
 
+    // set Timezone
+    config.timezone = await setTimeZone();
+    if (config.timezone != "") {
+        await postData({
+            type: "timezone",
+            timezone: config.timezone,
+        });
+    } else {
+        console.log("❌ Error posting the timezone");
+        await saveLog("❌ Error posting the timezone");
+
+    }
+
     //check if its weekend
     if (await checkIfWeekend()) {
         console.log("Weekend — no trading 🚫");
@@ -58,18 +71,6 @@ async function runStrategy() {
     }, delay);
 
 
-    // set Timezone
-    config.timezone = await setTimeZone();
-    if (config.timezone != "") {
-        await postData({
-            type: "timezone",
-            timezone: config.timezone,
-        });
-    } else {
-        console.log("❌ Error posting the timezone");
-        await saveLog("❌ Error posting the timezone");
-
-    }
 
     //running main strategy logic
     try {
