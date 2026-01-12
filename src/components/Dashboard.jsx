@@ -528,80 +528,81 @@ export default function Dashboard() {
 
                 </div>
 
-                {/* CHART + PRICE/FVG */}
-                <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-6">
-
-                    {candles && (
+                {/* CHART */}
+                {candles && (
+                    <div className="mb-6"> {/* MarketCanvas in its own block */}
                         <MarketCanvas candles={candles} />
-                    )}
+                    </div>
+                )}
 
+                {/* PRICE/FVG/LOGS */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
-                    <div className="space-y-6">
-                        {livePrice ? (
-                            <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-4">
-                                <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-1">
-                                    Live Price
-                                </h2>
-                                <div className="text-3xl font-extrabold text-teal-400">
-                                    {livePrice.price}
-                                </div>
-                                <div className="text-xs text-gray-400">
-                                    Last update:{" "}
-                                    {livePrice.createdAt
-                                        ? livePrice.createdAt.toLocaleString(undefined, {
-                                            day: "2-digit",
-                                            month: "long",
-                                            year: "numeric",
-                                            hour: "2-digit",
-                                            minute: "2-digit",
-                                            second: "2-digit"
-                                        })
-                                        : "—"}
-                                </div>
-                            </div>
-                        ) : <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-4">
+                    {livePrice ? (
+                        <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-4">
                             <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-1">
-                                No live price data...
+                                Live Price
                             </h2>
-                        </div>}
-
-                        {fvg ? (
-                            <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-4">
-                                <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-2">
-                                    Fair Value Gap
-                                </h2>
-                                <div className={`text-2xl font-extrabold ${fvg.type === "bullish" ? "text-teal-400" : "text-rose-400"
-                                    }`}>
-                                    {fvg.type.toUpperCase()}
-                                </div>
-                                <p className="text-sm text-gray-300">Created at: {fvg.createdAt}</p>
-                                <p className="text-sm text-gray-300">High: {fvg.gapHigh}</p>
-                                <p className="text-sm text-gray-300">Low: {fvg.gapLow}</p>
-                                {!fvg.fullVirgin ? <p className="text-sm text-gray-300">Mid: {fvg.gapMid}</p> : null}
-                                <p className="text-xs text-gray-400">
-                                    Virgin: {fvg.fullVirgin ? "Yes" : "No"}
-                                </p>
+                            <div className="text-3xl font-extrabold text-teal-400">
+                                {livePrice.price}
                             </div>
-                        ) : <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-4">
-                            <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-2">
-                                No Fair Value Gap data...
-                            </h2>
-                        </div>}
+                            <div className="text-xs text-gray-400">
+                                Last update:{" "}
+                                {livePrice.createdAt
+                                    ? livePrice.createdAt.toLocaleString(undefined, {
+                                        day: "2-digit",
+                                        month: "long",
+                                        year: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                        second: "2-digit"
+                                    })
+                                    : "—"}
+                            </div>
+                        </div>
+                    ) : <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-4">
+                        <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-1">
+                            No live price data...
+                        </h2>
+                    </div>}
 
-                        {logs && logs.length > 0 ? (
-                            <div className="
+                    {fvg ? (
+                        <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-4">
+                            <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-2">
+                                Fair Value Gap
+                            </h2>
+                            <div className={`text-2xl font-extrabold ${fvg.type === "bullish" ? "text-teal-400" : "text-rose-400"
+                                }`}>
+                                {fvg.type.toUpperCase()}
+                            </div>
+                            <p className="text-sm text-gray-300">Created at: {fvg.createdAt}</p>
+                            <p className="text-sm text-gray-300">High: {fvg.gapHigh}</p>
+                            <p className="text-sm text-gray-300">Low: {fvg.gapLow}</p>
+                            {!fvg.fullVirgin ? <p className="text-sm text-gray-300">Mid: {fvg.gapMid}</p> : null}
+                            <p className="text-xs text-gray-400">
+                                Virgin: {fvg.fullVirgin ? "Yes" : "No"}
+                            </p>
+                        </div>
+                    ) : <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-4">
+                        <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-2">
+                            No Fair Value Gap data...
+                        </h2>
+                    </div>}
+
+                    {logs && logs.length > 0 ? (
+                        <div className="
                                     bg-gradient-to-b from-[#11161d] to-[#0d1218]
                                     border border-[#1f2933]
                                     rounded-xl
                                     p-4
                                     shadow-[0_0_0_1px_rgba(255,255,255,0.02),0_10px_30px_rgba(0,0,0,0.4)]
                                 ">
-                                <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-3">
-                                    Logs
-                                </h2>
+                            <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-3">
+                                Logs
+                            </h2>
 
-                                {/* SCROLL CONTAINER */}
-                                <div className="
+                            {/* SCROLL CONTAINER */}
+                            <div className="
                                         h-56
                                         w-full
                                         overflow-y-auto
@@ -614,57 +615,58 @@ export default function Dashboard() {
                                         font-mono
                                     ">
 
-                                    {logs.map((entry, i) => {
-                                        const date = entry.createdAt instanceof Date
-                                            ? entry.createdAt
-                                            : entry.createdAt.toDate();
+                                {logs.map((entry, i) => {
+                                    const date = entry.createdAt instanceof Date
+                                        ? entry.createdAt
+                                        : entry.createdAt.toDate();
 
-                                        return (
-                                            <div
-                                                key={i}
-                                                className="border-b border-[#1f2933] pb-2 last:border-none"
-                                            >
-                                                <div className="text-[11px] text-gray-500 mb-1">
-                                                    {entry.createdAt
-                                                        ? entry.createdAt.toLocaleString(undefined, {
-                                                            year: "numeric",
-                                                            month: "short",
-                                                            day: "2-digit",
-                                                            hour: "2-digit",
-                                                            minute: "2-digit",
-                                                            second: "2-digit"
-                                                        })
-                                                        : "—"}
-                                                    <div className="text-gray-200 leading-relaxed">
-                                                        {entry.log}
-                                                    </div>
+                                    return (
+                                        <div
+                                            key={i}
+                                            className="border-b border-[#1f2933] pb-2 last:border-none"
+                                        >
+                                            <div className="text-[11px] text-gray-500 mb-1">
+                                                {entry.createdAt
+                                                    ? entry.createdAt.toLocaleString(undefined, {
+                                                        year: "numeric",
+                                                        month: "short",
+                                                        day: "2-digit",
+                                                        hour: "2-digit",
+                                                        minute: "2-digit",
+                                                        second: "2-digit"
+                                                    })
+                                                    : "—"}
+                                                <div className="text-gray-200 leading-relaxed">
+                                                    {entry.log}
                                                 </div>
                                             </div>
-                                        );
-                                    })}
-                                    <div ref={logsEndRef} />
-                                </div>
+                                        </div>
+                                    );
+                                })}
+                                <div ref={logsEndRef} />
                             </div>
-                        ) : (
-                            <div className="
+                        </div>
+                    ) : (
+                        <div className="
                                     bg-[#11161d]
                                     border border-[#1f2933]
                                     rounded-xl
                                     p-4
                                 ">
-                                <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-2">
-                                    Logs
-                                </h2>
-                                <p className="text-sm text-gray-500 italic">
-                                    No logs data available…
-                                </p>
-                            </div>
-                        )}
+                            <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-2">
+                                Logs
+                            </h2>
+                            <p className="text-sm text-gray-500 italic">
+                                No logs data available…
+                            </p>
+                        </div>
+                    )}
+                </div>
 
-                        {/* GUIDANCE BUTTON */}
-                        <button
-                            onClick={() => setShowGuide(true)}
-                            className="
+                {/* GUIDANCE BUTTON */}
+                <button
+                    onClick={() => setShowGuide(true)}
+                    className="
         fixed
         bottom-6
         right-6
@@ -683,15 +685,15 @@ export default function Dashboard() {
         items-center
         justify-center
     "
-                            aria-label="Guidance"
-                        >
-                            ?
-                        </button>
+                    aria-label="Guidance"
+                >
+                    ?
+                </button>
 
-                        {/* GUIDANCE MODAL */}
-                        {showGuide && (
-                            <div
-                                className="
+                {/* GUIDANCE MODAL */}
+                {showGuide && (
+                    <div
+                        className="
             fixed
             inset-0
             z-50
@@ -701,10 +703,10 @@ export default function Dashboard() {
             sm:items-center
             justify-center
         "
-                                onClick={() => setShowGuide(false)}
-                            >
-                                <div
-                                    className="
+                        onClick={() => setShowGuide(false)}
+                    >
+                        <div
+                            className="
                 bg-[#0f141b]
                 border
                 border-[#1f2933]
@@ -716,57 +718,53 @@ export default function Dashboard() {
                 text-gray-200
                 shadow-2xl
             "
-                                    onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* HEADER */}
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-lg font-extrabold tracking-wide">
+                                    How This Bot Works
+                                </h2>
+                                <button
+                                    onClick={() => setShowGuide(false)}
+                                    className="text-gray-400 hover:text-gray-200 text-xl"
                                 >
-                                    {/* HEADER */}
-                                    <div className="flex items-center justify-between mb-4">
-                                        <h2 className="text-lg font-extrabold tracking-wide">
-                                            How This Bot Works
-                                        </h2>
-                                        <button
-                                            onClick={() => setShowGuide(false)}
-                                            className="text-gray-400 hover:text-gray-200 text-xl"
-                                        >
-                                            ✕
-                                        </button>
-                                    </div>
-
-                                    {/* CONTENT */}
-                                    <div className="space-y-4 text-sm leading-relaxed">
-                                        <p>
-                                            <span className="font-semibold text-teal-400">Trading Strategy</span><br />
-                                            This bot uses the <span className="font-semibold">Virgin Fair Value Gaps (FVG)</span> strategy
-                                            to trade the <span className="font-semibold">EUR/USD</span> pair.<br />
-                                            <span className="font-semibold">1- </span>Get the bias and FVG data then wait for the price to enter its range.<br />
-                                            <span className="font-semibold">2- </span>Monitor the price in FVG and get a confirmation candle.<br />
-                                            <span className="font-semibold">3- </span>Execute.
-                                        </p>
-                                        <p>
-                                            <span className="font-semibold text-teal-400">Daily Bias</span><br />
-                                            The trading bias is determined using the
-                                            <span className="font-semibold"> last two daily candles</span>
-                                            {' '}to define higher-timeframe direction.
-                                        </p>
-
-                                        <p>
-                                            <span className="font-semibold text-teal-400">FVG Detection</span><br />
-                                            The bot identifies the <span className="font-semibold">closest Fair Value Gap</span>.
-                                            If <span className="font-semibold">half of the FVG is filled</span>,
-                                            it is treated as non-virgin and used only 50% of it.
-                                        </p>
-                                    </div>
-
-                                    {/* FOOTER */}
-                                    <div className="mt-6 text-xs text-gray-500 italic">
-                                        This guidance is informational and does not guarantee performance.
-                                    </div>
-                                </div>
+                                    ✕
+                                </button>
                             </div>
-                        )}
 
+                            {/* CONTENT */}
+                            <div className="space-y-4 text-sm leading-relaxed">
+                                <p>
+                                    <span className="font-semibold text-teal-400">Trading Strategy</span><br />
+                                    This bot uses the <span className="font-semibold">Virgin Fair Value Gaps (FVG)</span> strategy
+                                    to trade the <span className="font-semibold">EUR/USD</span> pair.<br />
+                                    <span className="font-semibold">1- </span>Get the bias and FVG data then wait for the price to enter its range.<br />
+                                    <span className="font-semibold">2- </span>Monitor the price in FVG and get a confirmation candle.<br />
+                                    <span className="font-semibold">3- </span>Execute.
+                                </p>
+                                <p>
+                                    <span className="font-semibold text-teal-400">Daily Bias</span><br />
+                                    The trading bias is determined using the
+                                    <span className="font-semibold"> last two daily candles</span>
+                                    {' '}to define higher-timeframe direction.
+                                </p>
 
+                                <p>
+                                    <span className="font-semibold text-teal-400">FVG Detection</span><br />
+                                    The bot identifies the <span className="font-semibold">closest Fair Value Gap</span>.
+                                    If <span className="font-semibold">half of the FVG is filled</span>,
+                                    it is treated as non-virgin and used only 50% of it.
+                                </p>
+                            </div>
+
+                            {/* FOOTER */}
+                            <div className="mt-6 text-xs text-gray-500 italic">
+                                This guidance is informational and does not guarantee performance.
+                            </div>
+                        </div>
                     </div>
-                </div>
+                )}
 
             </div>
         </div>

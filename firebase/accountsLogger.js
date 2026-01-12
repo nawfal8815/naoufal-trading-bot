@@ -89,7 +89,7 @@ async function updateBalance () {
         }
 
         // Schedule next run
-        setTimeout(processAccounts, 10 * 60 * 1000); // every 10 mins
+        setTimeout(processAccounts, 15 * 60 * 1000); // every 15 mins
     };
 
     await processAccounts();

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 
 export default function MarketCanvas({ candles }) {
     const canvasRef = useRef(null);
@@ -6,15 +6,18 @@ export default function MarketCanvas({ candles }) {
     // ===== Constants =====
     const padding = 80; // Increased padding for axes
     const priceDecimals = 4; // For EUR/USD, typically 4-5 decimals
-    const candleWidth = 6;
-    const gap = 2;
+    const candleWidth = 12; // Increased for wider candles
+    const gap = 4; // Increased gap between candles
 
     // ===== State =====
     const [offsetX, setOffsetX] = useState(0);
     const [offsetY, setOffsetY] = useState(0);
+    const [visibleMinPrice, setVisibleMinPrice] = useState(0);
+    const [visibleMaxPrice, setVisibleMaxPrice] = useState(0);
 
-    const isDragging = useRef(false);
-    const lastPos = useRef({ x: 0, y: 0 });
+    const isDragging = useRef(false); // For X-axis panning
+    const isYAxisDragging = useRef(false); // For Y-axis panning/scaling
+    const lastPos = useRef({ x: 0, y: 0 }); // For both X-axis and Y-axis drag start position
 
     // ===== Normalize candles (oldest → newest) =====
     const sorted = useMemo(() => {
@@ -23,6 +26,91 @@ export default function MarketCanvas({ candles }) {
             (a, b) => new Date(a.datetime) - new Date(b.datetime)
         );
     }, [candles]);
+
+    // Calculate initial visible price range (with default 3x zoom)
+    useEffect(() => {
+        if (!sorted.length) return;
+        const prices = sorted.flatMap(c => [c.high, c.low]);
+        const minOverallPrice = Math.min(...prices);
+        const maxOverallPrice = Math.max(...prices);
+
+        const initialRange = maxOverallPrice - minOverallPrice;
+        const zoomFactor = 3; // 3x zoom (show 1/3rd of the range)
+        const targetRange = initialRange / zoomFactor;
+
+        // Center the view around the latest candle's close price
+        const latestClosePrice = sorted[sorted.length - 1].close;
+
+        let newMinPrice = latestClosePrice - targetRange / 2;
+        let newMaxPrice = latestClosePrice + targetRange / 2;
+
+        // Boundary checks to ensure new range doesn't exceed overall min/max
+        if (newMinPrice < minOverallPrice) {
+            newMinPrice = minOverallPrice;
+            newMaxPrice = minOverallPrice + targetRange;
+        }
+        if (newMaxPrice > maxOverallPrice) {
+            newMaxPrice = maxOverallPrice;
+            newMinPrice = maxOverallPrice - targetRange;
+        }
+
+        // Ensure minimum range is maintained to prevent visual glitches
+        if (newMaxPrice - newMinPrice < 0.0001) { // A small arbitrary minimum range
+            newMinPrice = latestClosePrice - 0.00005;
+            newMaxPrice = latestClosePrice + 0.00005;
+        }
+
+
+        setVisibleMaxPrice(newMaxPrice);
+        setVisibleMinPrice(newMinPrice);
+    }, [sorted]);
+
+    const handleWheel = useCallback(e => {
+        e.preventDefault();
+
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const zoomFactor = 1.05; // Adjust zoom speed
+        const mouseCanvasY = e.clientY - canvas.getBoundingClientRect().top; // Y position relative to canvas
+        const currentChartHeight = canvas.height / (window.devicePixelRatio || 1) - padding * 2;
+
+        const prices = sorted.flatMap(c => [c.high, c.low]); // Define prices here
+        let maxOverallPrice = 0;
+        let minOverallPrice = 0;
+
+        if (prices.length > 0) {
+            maxOverallPrice = Math.max(...prices);
+            minOverallPrice = Math.min(...prices);
+        }
+
+        // Convert mouse Y to a price level
+        const priceAtMouse = visibleMaxPrice -
+            (mouseCanvasY - padding - offsetY) / currentChartHeight * (visibleMaxPrice - visibleMinPrice);
+
+        let newMinPrice = visibleMinPrice;
+        let newMaxPrice = visibleMaxPrice;
+
+        if (e.deltaY < 0) { // Zoom in
+            newMinPrice = priceAtMouse - (priceAtMouse - visibleMinPrice) / zoomFactor;
+            newMaxPrice = priceAtMouse + (visibleMaxPrice - priceAtMouse) / zoomFactor;
+        } else { // Zoom out
+            newMinPrice = priceAtMouse - (priceAtMouse - visibleMinPrice) * zoomFactor;
+            newMaxPrice = priceAtMouse + (visibleMaxPrice - priceAtMouse) * zoomFactor;
+        }
+
+        // Basic boundary checks (optional, can be refined)
+        // Ensure new min is less than new max, and prevent excessive zoom
+        const minAllowedPriceRange = 0.0001; // Example: Minimum price difference to prevent infinite zoom
+        const maxAllowedPriceRange = (maxOverallPrice - minOverallPrice) * 2; // Use overall price range
+        
+        const currentRange = newMaxPrice - newMinPrice;
+
+        if (newMinPrice < newMaxPrice && currentRange >= minAllowedPriceRange && currentRange <= maxAllowedPriceRange) {
+            setVisibleMinPrice(newMinPrice);
+            setVisibleMaxPrice(newMaxPrice);
+        }
+    }, [canvasRef, padding, offsetY, visibleMinPrice, visibleMaxPrice, setVisibleMinPrice, setVisibleMaxPrice, sorted]);
 
     // ===== Auto-scroll to latest candle =====
     useEffect(() => {
@@ -38,10 +126,22 @@ export default function MarketCanvas({ candles }) {
         setOffsetY(0);
     }, [sorted]);
 
+    // Attach non-passive wheel event listener
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        canvas.addEventListener('wheel', handleWheel, { passive: false });
+
+        return () => {
+            canvas.removeEventListener('wheel', handleWheel);
+        };
+    }, [handleWheel]); // handleWheel should be stable (e.g., wrapped in useCallback or its dependencies are stable)
+
     // ===== Draw =====
     useEffect(() => {
         requestAnimationFrame(draw);
-    }, [sorted, offsetX, offsetY]);
+    }, [sorted, offsetX, offsetY, visibleMinPrice, visibleMaxPrice]);
 
     const draw = () => {
         const canvas = canvasRef.current;
@@ -83,22 +183,22 @@ export default function MarketCanvas({ candles }) {
         if (!sorted.length) return;
 
         // ===== Price scale =====
-        const prices = sorted.flatMap(c => [c.high, c.low]);
-        const maxPrice = Math.max(...prices);
-        const minPrice = Math.min(...prices);
-        const priceRange = Math.max(maxPrice - minPrice, 0.000001);
+        // Use visible price range from state
+        const currentMaxPrice = visibleMaxPrice;
+        const currentMinPrice = visibleMinPrice;
+        const priceRange = Math.max(currentMaxPrice - currentMinPrice, 0.000001);
 
         const chartHeight = rect.height - padding * 2;
 
         const priceToY = price =>
             padding +
-            ((maxPrice - price) / priceRange) * chartHeight +
+            ((currentMaxPrice - price) / priceRange) * chartHeight +
             offsetY;
 
         // ===== Y-Axis (Price) =====
         ctx.font = "10px Arial";
         ctx.fillStyle = "#a7b1c2"; // Light gray for text
-        ctx.textAlign = "left";
+        ctx.textAlign = "right";
 
         // Determine number of ticks based on chart height
         const idealNumTicks = Math.floor(chartHeight / 50); // Approximately every 50px
@@ -119,21 +219,13 @@ export default function MarketCanvas({ candles }) {
             }
         }
         
-        let firstTickPrice = Math.floor(minPrice / niceTickStep) * niceTickStep;
+        let firstTickPrice = Math.floor(currentMinPrice / niceTickStep) * niceTickStep;
 
-        for (let price = firstTickPrice; price <= maxPrice; price += niceTickStep) {
+        for (let price = firstTickPrice; price <= currentMaxPrice; price += niceTickStep) {
             const y = priceToY(price);
             if (y > padding && y < rect.height - padding) {
-                // Draw horizontal grid line
-                ctx.beginPath();
-                ctx.strokeStyle = "#1f2533"; // Lighter grid for labels
-                ctx.lineWidth = 1;
-                ctx.moveTo(padding, y);
-                ctx.lineTo(rect.width - padding, y);
-                ctx.stroke();
-
                 // Draw price label
-                ctx.fillText(price.toFixed(priceDecimals), rect.width - padding + 5, y + 3);
+                ctx.fillText(price.toFixed(priceDecimals), rect.width, y + 3);
             }
         }
 
@@ -183,7 +275,7 @@ export default function MarketCanvas({ candles }) {
         ctx.font = "10px Arial";
         ctx.fillStyle = "#a7b1c2";
         ctx.textAlign = "center";
-        ctx.textBaseline = "top"; // Align text to the top of the baseline
+        ctx.textBaseline = "bottom"; // Align text to the bottom of the baseline
 
         // Iterate through candles to find suitable time labels (e.g., hourly)
         sorted.forEach((candle, i) => {
@@ -193,20 +285,11 @@ export default function MarketCanvas({ candles }) {
             const minutes = date.getMinutes();
             const hours = date.getHours();
 
-            // Draw a label roughly every 15 candles or at the start of a new hour for better readability
-            if (i % 15 === 0 || (minutes === 0 && i > 0)) { // Only draw if not the very first candle
+            if (minutes === 0) { // Only draw at the start of each hour
                 if (x > padding && x < rect.width - padding) {
-                    // Draw vertical grid line
-                    ctx.beginPath();
-                    ctx.strokeStyle = "#1f2533";
-                    ctx.lineWidth = 1;
-                    ctx.moveTo(x + candleWidth / 2, padding);
-                    ctx.lineTo(x + candleWidth / 2, rect.height - padding);
-                    ctx.stroke();
-
                     // Draw time label
-                    const label = (minutes === 0 && i > 0) ? `${hours.toString().padStart(2, '0')}:00` : `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-                    ctx.fillText(label, x + candleWidth / 2, rect.height - padding + 5);
+                    const label = `${hours.toString().padStart(2, '0')}:00`;
+                    ctx.fillText(label, x + candleWidth / 2, rect.height);
                 }
             }
         });
@@ -214,34 +297,55 @@ export default function MarketCanvas({ candles }) {
 
     // ===== Mouse handlers =====
     const onMouseDown = e => {
-        isDragging.current = true;
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+
+        // Check if click is on the Y-axis label area (right padding)
+        if (e.clientX > rect.right - padding) {
+            isYAxisDragging.current = true;
+        } else {
+            // Otherwise, it's for X-axis panning
+            isDragging.current = true;
+        }
         lastPos.current = { x: e.clientX, y: e.clientY };
     };
 
     const onMouseMove = e => {
-        if (!isDragging.current || !canvasRef.current) return;
+        if (!isDragging.current && !isYAxisDragging.current || !canvasRef.current) return;
 
         const dx = e.clientX - lastPos.current.x;
         const dy = e.clientY - lastPos.current.y;
 
-        const rect = canvasRef.current.getBoundingClientRect();
+        const canvas = canvasRef.current;
+        const rect = canvas.getBoundingClientRect();
+        const currentChartHeight = canvas.height / (window.devicePixelRatio || 1) - padding * 2;
+        // Ensure priceRange is not zero to avoid division by zero
+        const currentPriceRange = Math.max(visibleMaxPrice - visibleMinPrice, 0.000001);
+        const pricePerPixel = currentPriceRange / currentChartHeight;
 
-        const minOffsetX =
-            rect.width -
-            padding * 2 - // Account for padding on both sides
-            sorted.length * (candleWidth + gap);
-        const maxOffsetX = padding;
+        if (isDragging.current) { // X-axis panning
+            const minOffsetX =
+                rect.width -
+                padding * 2 -
+                sorted.length * (candleWidth + gap);
+            const maxOffsetX = padding;
 
-        setOffsetX(prev =>
-            Math.min(maxOffsetX, Math.max(minOffsetX, prev + dx))
-        );
-        setOffsetY(prev => prev + dy);
+            setOffsetX(prev =>
+                Math.min(maxOffsetX, Math.max(minOffsetX, prev + dx))
+            );
+        } else if (isYAxisDragging.current) { // Y-axis panning/scrolling
+            const priceChange = dy * pricePerPixel;
+            setVisibleMinPrice(prev => prev + priceChange);
+            setVisibleMaxPrice(prev => prev + priceChange);
+        }
 
         lastPos.current = { x: e.clientX, y: e.clientY };
     };
 
     const onMouseUp = () => {
         isDragging.current = false;
+        isYAxisDragging.current = false;
     };
 
     const resetView = () => {
@@ -266,8 +370,12 @@ export default function MarketCanvas({ candles }) {
 
         setOffsetX(newOffsetX);
         setOffsetY(0);
-    };
 
+        // Reset Y-axis zoom to full range
+        const prices = sorted.flatMap(c => [c.high, c.low]);
+        setVisibleMaxPrice(Math.max(...prices));
+        setVisibleMinPrice(Math.min(...prices));
+    };
 
     return (
         <div className="bg-[#0b0f14] rounded-xl p-3">
