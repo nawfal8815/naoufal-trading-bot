@@ -454,155 +454,148 @@ export default function Dashboard() {
 
                 </div>
 
+                {/* News and its companions (Live Price, FVG, Logs) */}
+                <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-6">
+                    {/* Left side: News*/}
+                    <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-5">
+                        <h2 className="text-sm uppercase tracking-wider text-gray-400 mb-3">
+                            News Decision
+                            <span className="block mt-1 text-[15px] text-teal-500 italic">
+                                (The time could be scaled{' '}
+                                <a
+                                    href="https://www.forexfactory.com/"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="underline text-gray-400 hover:text-gray-300 transition-colors"
+                                >
+                                    forexfactory.com
+                                </a>{' '}
+                                for exact time)
+                            </span>
+                        </h2>
 
-                {/* NEWS */}
-                <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-5">
-                    <h2 className="text-sm uppercase tracking-wider text-gray-400 mb-3">
-                        News Decision
-                        <span className="block mt-1 text-[15px] text-teal-500 italic">
-                            (The time could be scaled{' '}
-                            <a
-                                href="https://www.forexfactory.com/"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="underline text-gray-400 hover:text-gray-300 transition-colors"
-                            >
-                                forexfactory.com
-                            </a>{' '}
-                            for exact time)
-                        </span>
-                    </h2>
+                        {news ? (
+                            <p className={`font-semibold ${newsDecisionStyle(news)}`}>
+                                {news}
+                            </p>
+                        ) : (
+                            <p className="text-gray-400 font-semibold">
+                                No news data available
+                            </p>
+                        )}
 
-                    {news ? (
-                        <p className={`font-semibold ${newsDecisionStyle(news)}`}>
-                            {news}
-                        </p>
-                    ) : (
-                        <p className="text-gray-400 font-semibold">
-                            No news data available
-                        </p>
-                    )}
-
-                    {newsEvents.length !== 0 && (
-                        <div className="mt-4 space-y-3 text-sm">
-                            {adjustedEvents?.map((n, i) => (
-                                <div
-                                    key={i}
-                                    className="
+                        {newsEvents.length !== 0 && (
+                            <div className="mt-4 space-y-3 text-sm">
+                                {adjustedEvents?.map((n, i) => (
+                                    <div
+                                        key={i}
+                                        className="
                                 w-full
                                 border-b border-[#1f2933] pb-3
                                 flex flex-col gap-1
                                 sm:grid sm:grid-cols-[90px_70px_90px_1fr]
                                 sm:gap-4 sm:items-center
                             "
-                                >
-                                    {/* TIME */}
-                                    <div className="flex sm:block">
-                                        <span className="sm:hidden text-gray-500 mr-1">Time:</span>
-                                        <span className="text-gray-400">{n.time}</span>
+                                    >
+                                        {/* TIME */}
+                                        <div className="flex sm:block">
+                                            <span className="sm:hidden text-gray-500 mr-1">Time:</span>
+                                            <span className="text-gray-400">{n.time}</span>
+                                        </div>
+
+                                        {/* CURRENCY */}
+                                        <div className="flex sm:block">
+                                            <span className="sm:hidden text-gray-500 mr-1">Currency:</span>
+                                            <span className="text-blue-400 font-semibold">{n.currency}</span>
+                                        </div>
+
+                                        {/* IMPACT */}
+                                        <div className="flex sm:block">
+                                            <span className="sm:hidden text-gray-500 mr-1">Impact:</span>
+                                            <span className={`${impactColor(n.impact)} font-semibold`}>
+                                                {n.impact === "N/A" ? "Non-Economic" : n.impact}
+                                            </span>
+                                        </div>
+
+                                        {/* EVENT */}
+                                        <div className="flex sm:block text-gray-200">
+                                            <span className="sm:hidden text-gray-500 mr-1">Event:</span>
+                                            <span>{n.event}</span>
+                                        </div>
                                     </div>
+                                ))}
+                            </div>
+                        )}
 
-                                    {/* CURRENCY */}
-                                    <div className="flex sm:block">
-                                        <span className="sm:hidden text-gray-500 mr-1">Currency:</span>
-                                        <span className="text-blue-400 font-semibold">{n.currency}</span>
-                                    </div>
-
-                                    {/* IMPACT */}
-                                    <div className="flex sm:block">
-                                        <span className="sm:hidden text-gray-500 mr-1">Impact:</span>
-                                        <span className={`${impactColor(n.impact)} font-semibold`}>
-                                            {n.impact === "N/A" ? "Non-Economic" : n.impact}
-                                        </span>
-                                    </div>
-
-                                    {/* EVENT */}
-                                    <div className="flex sm:block text-gray-200">
-                                        <span className="sm:hidden text-gray-500 mr-1">Event:</span>
-                                        <span>{n.event}</span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                </div>
-
-                {/* CHART */}
-                {candles && (
-                    <div className="mb-6"> {/* MarketCanvas in its own block */}
-                        <MarketCanvas candles={candles} />
                     </div>
-                )}
 
-                {/* PRICE/FVG/LOGS */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-                    {livePrice ? (
-                        <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-4">
+                    {/* Right side: Live Price, FVG, Logs */}
+                    <div className="space-y-6">
+                        {livePrice ? (
+                            <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-4">
+                                <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-1">
+                                    Live Price
+                                </h2>
+                                <div className="text-3xl font-extrabold text-teal-400">
+                                    {livePrice.price}
+                                </div>
+                                <div className="text-xs text-gray-400">
+                                    Last update:{" "}
+                                    {livePrice.createdAt
+                                        ? livePrice.createdAt.toLocaleString(undefined, {
+                                            day: "2-digit",
+                                            month: "long",
+                                            year: "numeric",
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                            second: "2-digit"
+                                        })
+                                        : "—"}
+                                </div>
+                            </div>
+                        ) : <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-4">
                             <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-1">
-                                Live Price
+                                No live price data...
                             </h2>
-                            <div className="text-3xl font-extrabold text-teal-400">
-                                {livePrice.price}
-                            </div>
-                            <div className="text-xs text-gray-400">
-                                Last update:{" "}
-                                {livePrice.createdAt
-                                    ? livePrice.createdAt.toLocaleString(undefined, {
-                                        day: "2-digit",
-                                        month: "long",
-                                        year: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                        second: "2-digit"
-                                    })
-                                    : "—"}
-                            </div>
-                        </div>
-                    ) : <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-4">
-                        <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-1">
-                            No live price data...
-                        </h2>
-                    </div>}
+                        </div>}
 
-                    {fvg ? (
-                        <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-4">
+                        {fvg ? (
+                            <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-4">
+                                <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-2">
+                                    Fair Value Gap
+                                </h2>
+                                <div className={`text-2xl font-extrabold ${fvg.type === "bullish" ? "text-teal-400" : "text-rose-400"
+                                    }`}>
+                                    {fvg.type.toUpperCase()}
+                                </div>
+                                <p className="text-sm text-gray-300">Created at: {fvg.createdAt}</p>
+                                <p className="text-sm text-gray-300">High: {fvg.gapHigh}</p>
+                                <p className="text-sm text-gray-300">Low: {fvg.gapLow}</p>
+                                {!fvg.fullVirgin ? <p className="text-sm text-gray-300">Mid: {fvg.gapMid}</p> : null}
+                                <p className="text-xs text-gray-400">
+                                    Virgin: {fvg.fullVirgin ? "Yes" : "No"}
+                                </p>
+                            </div>
+                        ) : <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-4">
                             <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-2">
-                                Fair Value Gap
+                                No Fair Value Gap data...
                             </h2>
-                            <div className={`text-2xl font-extrabold ${fvg.type === "bullish" ? "text-teal-400" : "text-rose-400"
-                                }`}>
-                                {fvg.type.toUpperCase()}
-                            </div>
-                            <p className="text-sm text-gray-300">Created at: {fvg.createdAt}</p>
-                            <p className="text-sm text-gray-300">High: {fvg.gapHigh}</p>
-                            <p className="text-sm text-gray-300">Low: {fvg.gapLow}</p>
-                            {!fvg.fullVirgin ? <p className="text-sm text-gray-300">Mid: {fvg.gapMid}</p> : null}
-                            <p className="text-xs text-gray-400">
-                                Virgin: {fvg.fullVirgin ? "Yes" : "No"}
-                            </p>
-                        </div>
-                    ) : <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-4">
-                        <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-2">
-                            No Fair Value Gap data...
-                        </h2>
-                    </div>}
+                        </div>}
 
-                    {logs && logs.length > 0 ? (
-                        <div className="
+                        {logs && logs.length > 0 ? (
+                            <div className="
                                     bg-gradient-to-b from-[#11161d] to-[#0d1218]
                                     border border-[#1f2933]
                                     rounded-xl
                                     p-4
                                     shadow-[0_0_0_1px_rgba(255,255,255,0.02),0_10px_30px_rgba(0,0,0,0.4)]
                                 ">
-                            <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-3">
-                                Logs
-                            </h2>
+                                <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-3">
+                                    Logs
+                                </h2>
 
-                            {/* SCROLL CONTAINER */}
-                            <div className="
+                                {/* SCROLL CONTAINER */}
+                                <div className="
                                         h-56
                                         w-full
                                         overflow-y-auto
@@ -615,53 +608,60 @@ export default function Dashboard() {
                                         font-mono
                                     ">
 
-                                {logs.map((entry, i) => {
-                                    const date = entry.createdAt instanceof Date
-                                        ? entry.createdAt
-                                        : entry.createdAt.toDate();
+                                    {logs.map((entry, i) => {
+                                        const date = entry.createdAt instanceof Date
+                                            ? entry.createdAt
+                                            : entry.createdAt.toDate();
 
-                                    return (
-                                        <div
-                                            key={i}
-                                            className="border-b border-[#1f2933] pb-2 last:border-none"
-                                        >
-                                            <div className="text-[11px] text-gray-500 mb-1">
-                                                {entry.createdAt
-                                                    ? entry.createdAt.toLocaleString(undefined, {
-                                                        year: "numeric",
-                                                        month: "short",
-                                                        day: "2-digit",
-                                                        hour: "2-digit",
-                                                        minute: "2-digit",
-                                                        second: "2-digit"
-                                                    })
-                                                    : "—"}
-                                                <div className="text-gray-200 leading-relaxed">
-                                                    {entry.log}
+                                        return (
+                                            <div
+                                                key={i}
+                                                className="border-b border-[#1f2933] pb-2 last:border-none"
+                                            >
+                                                <div className="text-[11px] text-gray-500 mb-1">
+                                                    {entry.createdAt
+                                                        ? entry.createdAt.toLocaleString(undefined, {
+                                                            year: "numeric",
+                                                            month: "short",
+                                                            day: "2-digit",
+                                                            hour: "2-digit",
+                                                            minute: "2-digit",
+                                                            second: "2-digit"
+                                                        })
+                                                        : "—"}
+                                                    <div className="text-gray-200 leading-relaxed">
+                                                        {entry.log}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
-                                <div ref={logsEndRef} />
+                                        );
+                                    })}
+                                    <div ref={logsEndRef} />
+                                </div>
                             </div>
-                        </div>
-                    ) : (
-                        <div className="
+                        ) : (
+                            <div className="
                                     bg-[#11161d]
                                     border border-[#1f2933]
                                     rounded-xl
                                     p-4
                                 ">
-                            <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-2">
-                                Logs
-                            </h2>
-                            <p className="text-sm text-gray-500 italic">
-                                No logs data available…
-                            </p>
-                        </div>
-                    )}
+                                <h2 className="text-xs uppercase tracking-wider text-gray-400 mb-2">
+                                    Logs
+                                </h2>
+                                <p className="text-sm text-gray-500 italic">
+                                    No logs data available…
+                                </p>
+                            </div>
+                        )}
+                    </div>
                 </div>
+
+                {/* Canvas */}
+                
+                {candles && (
+                    <MarketCanvas candles={candles} />
+                )}
 
                 {/* GUIDANCE BUTTON */}
                 <button
