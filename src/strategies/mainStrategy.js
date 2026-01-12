@@ -20,59 +20,60 @@ let strategyRunning = false; // prevent overlapping runs
 let tradesToday = 0;
 
 async function runStrategy() {
+    const processId = Math.random().toString(36).substring(2, 9); // Unique ID for this process invocation
 
-    if (strategyRunning) return;
+    if (strategyRunning) {
+        console.log(`[${processId}] Strategy already running, preventing overlap.`);
+        return;
+    }
     strategyRunning = true;
-
-    
-    //init collections
-    await initCollections();
-
-    //start accounts confirmator timeline every 5 secs and balance getter every 10 mins
-    accountsApproval();
-    updateBalance();
-
-    // set Timezone
-    config.timezone = await setTimeZone();
-    if (config.timezone != "") {
-        await postData({
-            type: "timezone",
-            timezone: config.timezone,
-        });
-    } else {
-        console.log("❌ Error posting the timezone");
-        await saveLog("❌ Error posting the timezone");
-
-    }
-
-    //check if its weekend
-    if (await checkIfWeekend()) {
-        console.log("Weekend — no trading 🚫");
-        await saveLog("Weekend — no trading 🚫");
-        await sleepUntilNextAsiaSession();
-        strategyRunning = false;
-        tradesToday = 0;
-        return;
-    }
-
-    // update latest candle and live price
-    updateCandlesData();
-    updatePriceData();
-
-    //set the timer to auto reexecute the strategie the next day
-    const delay = await msUntilNextAsiaSession();
-    setTimeout(() => {
-        console.log("🌅 New Asia session... Restarting the strategy");
-        saveLog("🌅 New Asia session... Restarting the strategy");
-        strategyRunning = false;
-        tradesToday = 0;
-        return;
-    }, delay);
-
+    console.log(`[${processId}] Starting strategy...`);
+    await saveLog(`[${processId}] Starting strategy...`);
 
 
     //running main strategy logic
     try {
+        //init collections
+        await initCollections();
+
+        //start accounts confirmator timeline every 5 secs and balance getter every 10 mins
+        accountsApproval();
+        updateBalance();
+
+        // set Timezone
+        config.timezone = await setTimeZone();
+        if (config.timezone != "") {
+            await postData({
+                type: "timezone",
+                timezone: config.timezone,
+            });
+        } else {
+            console.log("❌ Error posting the timezone");
+            await saveLog("❌ Error posting the timezone");
+        }
+
+        //check if its weekend
+        if (await checkIfWeekend()) {tradesToday
+            console.log("Weekend — no trading 🚫");
+            await saveLog("Weekend — no trading 🚫");
+            tradesToday = 0;
+            const delay = await msUntilNextAsiaSession();
+            return restartStrategy(delay, processId);
+        }
+
+        // update latest candle and live price
+        updateCandlesData();
+        updatePriceData();
+
+        //set the timer to auto reexecute the strategie the next day
+        const delay = await msUntilNextAsiaSession();
+        setTimeout(() => {
+            console.log("🌅 New Asia session... Restarting the strategy");
+            saveLog("🌅 New Asia session... Restarting the strategy");
+            tradesToday = 0;
+            return restartStrategy(0, processId);
+        }, delay);
+
         // Check news first
         const events = await getNews();
         const newsRules = await newsDecision(events);
@@ -88,11 +89,7 @@ async function runStrategy() {
                 `⚠️ *Trading Skipped Today*
                 High impact news events detected for ${config.symbol}. No trades will be taken today.
             `, { parse_mode: "Markdown" });
-            strategyRunning = false;
-            tradesToday = 0;
-            config.tradeQuality -= 50;
-            await sleepUntilNextAsiaSession();
-            return; // restart fresh next day
+            return restartStrategy(0, processId); // restart fresh next day
         } else if (newsRules.blockTimes.length > 0) {
             config.tradeQuality -= 20;
         } else if (newsRules.warnTimes.length > 0) config.tradeQuality -= 10;
@@ -105,9 +102,7 @@ async function runStrategy() {
         if (!signal || signal.potential === "none") {
             console.log("No valid signal, retrying in 30 secs...");
             saveLog("No valid signal, retrying in 30 secs...");
-            strategyRunning = false;
-            await sleep(30000);
-            return;
+            return restartStrategy(30000, processId);
         }
 
         telegramUsersSender(
@@ -124,10 +119,7 @@ async function runStrategy() {
         if (!fvg) {
             console.log("No virgin FVG found, restarting strategy the next day...");
             saveLog("No virgin FVG found, restarting strategy the next day...");
-            strategyRunning = false;
-            tradesToday = 0;
-            await sleepUntilNextAsiaSession();
-            return;
+            return restartStrategy(0, processId);
         }
 
         if (!fvg.fullVirgin) config.tradeQuality -= 10;
@@ -184,17 +176,14 @@ async function runStrategy() {
 
 
         if (result.status === "confirmed") {
-            if (newsRules != 0 && !confirmationTimeChecker(newsRules)) {
+            if (!confirmationTimeChecker(newsRules)) {
                 telegramUsersSender(
                     `⛔ *Trade Cancelled! ${config.symbol}*
                     Trade cancelled due to high-impact news events.
                     `, { parse_mode: "Markdown" });
                 console.log("Trade cancelled due to news impact.");
                 await saveLog("Trade cancelled due to news impact.");
-                strategyRunning = false;
-                tradesToday = 0;
-                await sleepUntilNextAsiaSession();
-                return; // restart fresh next day
+                return restartStrategy(0, processId);           
             } else {
                 //place trade
                 const entryData = await getEntryData(fvg, result.entryCandle, signal.potential);
@@ -222,37 +211,40 @@ async function runStrategy() {
                 await savePosition(positionDB);
 
                 monitorTrade(entryData.takeProfit, entryData.stopLoss, signal.potential);
-                strategyRunning = false;
                 if (tradesToday === config.risk.maxTreadesPerDay) {
                     tradesToday = 0;
-                    console.log("Trade executed successfully. Strategy cycle complete for the day.");
-                    await saveLog("Trade executed successfully. Strategy cycle complete for the day.");
+                    console.log("Max trades amount for today has been reached, restarting...");
+                    await saveLog("Max trades amount for today has been reached, restarting...");
                     await sleepUntilNextAsiaSession();
-                    return; // restart fresh next day
                 } else {
                     console.log("Trade executed successfully. Restarting strategy.");
                     await saveLog("Trade executed successfully. Restarting strategy.");
-                    return;
                 }
+                return restartStrategy(0, processId);
             }
         } if (result.status === "expired") {
             console.log("FVG expired or invalidated. Restarting strategy...");
             saveLog("FVG expired or invalidated. Restarting strategy...");
-            strategyRunning = false;
-            return;
+            return restartStrategy(0, processId);
         }
 
     } catch (err) {
         console.error("Strategy error:", err);
-        strategyRunning = false;
-        // retry after short delay
+        await saveLog("Strategy error: " + err);
+
         console.log("Retrying strategy in 30 seconds...");
-        saveLog("Retrying strategy in 30 seconds...");
-        await sleep(30000);
-        return;
-    } finally {
-        if (!strategyRunning) return runStrategy();
+        return restartStrategy(30000);
     }
+}
+
+async function restartStrategy(delay = 0, processId) {
+    strategyRunning = false;
+    if (delay > 0) {
+        console.log(`[${processId}] Waiting for ${delay / 1000} seconds before restarting...`);
+        await sleep(delay);
+    }
+    console.log(`[${processId}] Restarting strategy...`);
+    return runStrategy();
 }
 
 module.exports = { runStrategy };

@@ -35,10 +35,10 @@ async function getEntryData(fvg, candle, bias) {
 async function getLotsize(entryData, balance) {
     const moneyAtRisk = balance * config.risk.perTrade;
     if (entryData.bias === "buy") {
-        return Number((moneyAtRisk / ((entryData.entryPrice - SL) * config.risk.multiplyer)).toFixed(3));
+        return Number((moneyAtRisk / ((entryData.entryPrice - entryData.sl) * config.risk.multiplyer)).toFixed(3));
     }
     if (entryData.bias === "sell") {
-        return Number((moneyAtRisk / ((SL - entryData.entryPrice) * config.risk.multiplyer)).toFixed(3));
+        return Number((moneyAtRisk / ((entryData.sl - entryData.entryPrice) * config.risk.multiplyer)).toFixed(3));
     }
 
 }

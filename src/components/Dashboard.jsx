@@ -18,6 +18,8 @@ export default function Dashboard() {
     const [igAccount, setIgAccount] = useState(null);
     const [moneyAtRisk, setMoneyAtRisk] = useState(0);
     const logsEndRef = useRef(null);
+    const prevLogsLength = useRef(0);
+    const hasMountedRef = useRef(false);
     const [showGuide, setShowGuide] = useState(false);
 
     useEffect(() => {
@@ -58,7 +60,7 @@ export default function Dashboard() {
                     api.get("/api/data")
                 ]);
 
-                setCandles(candlesRes?.data[0]?.candles || []);
+                setCandles(candlesRes?.data || []);
                 setData(dashboardRes?.data || null);
             } catch (err) {
                 setCandles([]);
@@ -104,10 +106,21 @@ export default function Dashboard() {
     useEffect(() => {
         if (!logs || logs.length === 0) return;
 
-        logsEndRef.current?.scrollIntoView({
-            behavior: "auto" // change to "smooth" if you want animation
-        });
+        // ⛔ Skip first render
+        if (!hasMountedRef.current) {
+            hasMountedRef.current = true;
+            prevLogsLength.current = logs.length;
+            return;
+        }
+
+        // ✅ Scroll ONLY when new logs arrive after mount
+        if (logs.length > prevLogsLength.current) {
+            logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }
+
+        prevLogsLength.current = logs.length;
     }, [logs]);
+
 
     if (loading) {
         return (
@@ -384,7 +397,7 @@ export default function Dashboard() {
                             Trade Quality
                         </h3>
 
-                        {percentage ? (
+                        {percentage && !isWeekend ? (
                             <div className="flex items-start gap-5">
 
                                 {/* RING + STATUS COLUMN */}
@@ -426,9 +439,15 @@ export default function Dashboard() {
 
                             </div>
                         ) : (
-                            <p className="text-gray-400 font-semibold">
-                                No trade quality data
-                            </p>
+                            <div className="flex items-start gap-5">
+                                {isWeekend ?
+                                    <p className="text-gray-400 font-semibold">
+                                        Quality will be showen on Monday.
+                                    </p> : <p className="text-gray-400 font-semibold">
+                                        No trade quality data
+                                    </p>
+                                }
+                            </div>
                         )}
 
                     </div>
