@@ -37,7 +37,6 @@ async function runStrategy() {
         await initCollections();
 
         //start accounts confirmator timeline every 5 secs and balance getter every 10 mins
-        accountsApproval();
         updateBalance();
 
         // set Timezone
@@ -46,6 +45,10 @@ async function runStrategy() {
             await postData({
                 type: "timezone",
                 timezone: config.timezone,
+            }, {
+                headers: {
+                    authorization: `x-bot-api-key ${config.botApiKey}` // Attach ID Token to headers
+                }
             });
         } else {
             console.log("❌ Error posting the timezone");

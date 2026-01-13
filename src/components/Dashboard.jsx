@@ -3,6 +3,7 @@ import { api } from "../server/frontendApi";
 import "../index.css";
 import MarketCanvas from "./MarketCanvas"
 import { auth } from "../../firebase/firebase";
+import { onAuthStateChanged } from "firebase/auth"; // Add this import
 import { getLatest, getUserIG, getLogs } from "../../firebase/queries.client";
 import UserMenu from "./UserMenu";
 import config from "../../config/front-end/config";
@@ -10,6 +11,8 @@ import config from "../../config/front-end/config";
 
 
 export default function Dashboard() {
+    const [user, setUser] = useState(null); // Declare user state
+    const [authLoading, setAuthLoading] = useState(true); // Declare authLoading state
     const [data, setData] = useState([]);
     const [dbData, setDbData] = useState([]);
     const [candles, setCandles] = useState([]);
@@ -22,74 +25,105 @@ export default function Dashboard() {
     const hasMountedRef = useRef(false);
     const [showGuide, setShowGuide] = useState(false);
 
+    const fetchApiData = async (currentUser) => { // Pass currentUser as an argument
+        if (!currentUser) return; // Don't fetch if no user is logged in
+
+        try {
+            const idToken = await currentUser.getIdToken(); // Get Firebase ID Token
+            const headers = { Authorization: `Bearer ${idToken}` };
+
+            const [candlesRes, dashboardRes] = await Promise.all([
+                api.get("/api/data/candles", { headers }),
+                api.get("/api/data", { headers })
+            ]);
+
+            setCandles(candlesRes?.data || []);
+            setData(dashboardRes?.data || null);
+        } catch (err) {
+            setCandles([]);
+            setData([]);
+            console.error("API fetch failed:", err);
+        }
+    };
+
+    const fetchDbData = async () => {
+        try {
+            const [dailyInfo, news, livePrice, logs] = await Promise.all([
+                getLatest("Daily_Info"),
+                getLatest("News"),
+                getLatest("Live_Price"),
+                getLogs("Logs")
+            ]);
+
+            setDbData({ dailyInfo, news, livePrice, logs });
+        } catch (err) {
+            setDbData([]);
+            console.error("DB fetch failed:", err);
+        }
+    };
+
+    const fetchIGData = async () => {
+        try {
+            const userInfo = await getUserIG(auth.currentUser.uid)
+            setIgAccount(userInfo.igAccount || null);
+            setMoneyAtRisk(userInfo.igAccount.balance * config.risk.perTrade || 0);
+        } catch (err) {
+            setIgAccount(null);
+            setMoneyAtRisk(0);
+            console.error("IG fetch failed:", err);
+        }
+    };
+
+    const init = async () => {
+        if (!user) { // Ensure user is loaded before making authenticated calls
+            setLoading(false);
+            return;
+        }
+        try {
+            await Promise.allSettled([
+                fetchDbData(),
+                fetchApiData(user), // Pass the user object here
+                fetchIGData()
+            ]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // AUTH LISTENER for user and authLoading states
+    useEffect(() => {
+        const unsub = onAuthStateChanged(auth, (firebaseUser) => {
+            setUser(firebaseUser);
+            setAuthLoading(false);
+        });
+        return () => unsub();
+    }, []);
+
     useEffect(() => {
         let intervalId;
 
-        const fetchDbData = async () => {
-            try {
-                const [dailyInfo, news, livePrice, logs] = await Promise.all([
-                    getLatest("Daily_Info"),
-                    getLatest("News"),
-                    getLatest("Live_Price"),
-                    getLogs("Logs")
-                ]);
+        // Only proceed if authentication state has been determined
+        if (authLoading) {
+            return; // Still loading auth state
+        }
 
-                setDbData({ dailyInfo, news, livePrice, logs });
-            } catch (err) {
-                setDbData([]);
-                console.error("DB fetch failed:", err);
-            }
-        };
+        // If auth state is known, but no user, stop loading and return
+        if (!user) {
+            setLoading(false);
+            return;
+        }
 
-        const fetchIGData = async () => {
-            try {
-                const userInfo = await getUserIG(auth.currentUser.uid)
-                setIgAccount(userInfo.igAccount || null);
-                setMoneyAtRisk(userInfo.igAccount.balance * config.risk.perTrade || 0);
-            } catch (err) {
-                setIgAccount(null);
-                setMoneyAtRisk(0);
-                console.error("IG fetch failed:", err);
-            }
-        };
+        // If auth state is known and user is present, initialize
+        init(); // init itself handles passing user to fetchApiData
 
-        const fetchApiData = async () => {
-            try {
-                const [candlesRes, dashboardRes] = await Promise.all([
-                    api.get("/api/data/candles"),
-                    api.get("/api/data")
-                ]);
-
-                setCandles(candlesRes?.data || []);
-                setData(dashboardRes?.data || null);
-            } catch (err) {
-                setCandles([]);
-                setData([]);
-                console.error("API fetch failed:", err);
-            }
-        };
-
-        const init = async () => {
-            try {
-                await Promise.allSettled([
-                    fetchDbData(),
-                    fetchApiData(),
-                    fetchIGData()
-                ]);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        init();
-
-        intervalId = setInterval(init, 60 * 1000);
-
-        setUserTimezone(
-            Intl.DateTimeFormat().resolvedOptions().timeZone
-        );
+        intervalId = setInterval(() => init(), 5 * 60 * 1000); // init already passes user to fetchApiData
 
         return () => clearInterval(intervalId);
+    }, [authLoading, user]); // Depend on authLoading and user
+
+    useEffect(() => {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        setUserTimezone(tz);
     }, []);
 
     const logsSnap = dbData?.logs?.snap ?? [];
@@ -658,7 +692,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Canvas */}
-                
+
                 {candles && (
                     <MarketCanvas
                         candles={candles}
@@ -784,4 +818,3 @@ export default function Dashboard() {
         </div>
     );
 }
-

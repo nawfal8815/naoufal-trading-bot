@@ -82,6 +82,20 @@ async function getData(col) {
     }
 }
 
+async function getUserSettingsById(uid) {
+    try {
+        const userRef = db.collection("UserSettings").doc(uid);
+        const docSnap = await userRef.get();
+        if (docSnap.exists) {
+            return { id: docSnap.id, ...docSnap.data() };
+        }
+        return null;
+    } catch (err) {
+        console.error("Failed to get user settings by ID:", err);
+        return null;
+    }
+}
+
 async function telegramChecked(id) {
     try {
         const ref = db.collection("UserSettings").doc(id);
@@ -138,4 +152,4 @@ async function saveUserBalance(uid, balance) {
 }
 
 
-module.exports = { saveLog, saveDailyInfo, saveLivePrice, saveNews, savePosition, getData, telegramChecked, igMarketsChecked, igMarketsundefiened, saveUserBalance };
+module.exports = { saveLog, saveDailyInfo, saveLivePrice, saveNews, savePosition, getData, getUserSettingsById, telegramChecked, igMarketsChecked, igMarketsundefiened, saveUserBalance };

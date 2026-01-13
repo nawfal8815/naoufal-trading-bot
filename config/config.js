@@ -11,6 +11,7 @@ module.exports = {
     port: process.env.PORT,
     url: process.env.URL,
     tradeQuality: 100,
+    botApiKey: process.env.BOT_API_KEY,
 
     risk: {
         perTrade: 0.01, // 1%

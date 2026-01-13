@@ -11,7 +11,11 @@ async function monitorFVG({ fvg, signal }) {
     console.log("⏳ Waiting for price to enter FVG...");
     await postData({
         type: "fvgStatus",
-        status: "⏳ Waiting for price to enter FVG...",
+        status: "⏳ Waiting for price to enter FVG..."
+    }, {
+        headers: {
+            authorization: `x-bot-api-key ${config.botApiKey}` // Attach ID Token to headers
+        }
     });
     const startTime = Date.now();
     const maxWait = 1000 * 60 * 60 * 10; // max 10 hours of monitoring
@@ -49,6 +53,10 @@ async function monitorFVG({ fvg, signal }) {
     await postData({
         type: "fvgStatus",
         status: "📊 Monitoring candles inside FVG..."
+    }, {
+        headers: {
+            authorization: `x-bot-api-key ${config.botApiKey}` // Attach ID Token to headers
+        }
     });
 
     // ---- PHASE 2 + 3: candle logic ----
@@ -76,6 +84,10 @@ async function monitorFVG({ fvg, signal }) {
             await postData({
                 type: "fvgStatus",
                 status: "❌ FVG expired by candle close: " + candle.close
+            }, {
+                headers: {
+                    authorization: `x-bot-api-key ${config.botApiKey}` // Attach ID Token to headers
+                }
             });
             return { status: "expired" };
         }
@@ -86,6 +98,10 @@ async function monitorFVG({ fvg, signal }) {
             await postData({
                 type: "fvgStatus",
                 status: "✅ Confirmation candle detected!"
+            }, {
+                headers: {
+                    authorization: `x-bot-api-key ${config.botApiKey}` // Attach ID Token to headers
+                }
             });
             return {
                 status: "confirmed",

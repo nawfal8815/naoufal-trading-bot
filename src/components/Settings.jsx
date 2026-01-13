@@ -13,6 +13,7 @@ import {
     verifyBeforeUpdateEmail
 } from "firebase/auth";
 
+import { api } from "../../src/server/frontendApi"; // Add this import
 import { saveUserSettings, getUserIG } from "../../firebase/queries.client";
 import { FaUserCircle, FaArrowLeft } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
@@ -118,33 +119,26 @@ export default function Settings() {
     // ---------------- PROVIDER RULES ----------------
 
     const providers = user.providerData.map(p => p.providerId);
-    console.log(providers);
 
     const isGoogleUser = providers.includes("google.com");
     const isGithubUser = providers.includes("github.com");
     const isPasswordUser = providers.includes("password");
-    console.log("google?", isGoogleUser, "github?", isGithubUser, "password?", isPasswordUser);
 
     const authEmail = user.email;
     const authName = user.displayName;
-    console.log("email", authEmail, "name", authName);
 
     const githubHasProfile = isGithubUser && authEmail !== null && authName !== null;
-    console.log("github has profile?", githubHasProfile);
 
     const canEditEmail =
         isPasswordUser ||
         (isGithubUser && authEmail === null);
 
-    console.log("can edit email?", canEditEmail);
 
     const canEditName =
         isPasswordUser ||
         (isGithubUser && authName === null);
-    console.log("can edit name?", canEditName);
 
     const canEditPassword = isPasswordUser;
-    console.log("can edit pw?", canEditPassword);
 
     // ---------------- PROFILE SAVE ----------------
 
@@ -291,14 +285,40 @@ export default function Settings() {
 
     async function handleIGConnect() {
         setIgStatus(null);
+
+        // 🔴 Validate inputs first
+        const emptyField = Object.entries(igAccount).find(
+            ([, value]) => !value || value.trim() === ""
+        );
+
+        if (emptyField) {
+            setIgStatus({
+                type: "error",
+                message: "Please fill in all IG account fields."
+            });
+            return;
+        }
+
         setIgLoading(true);
 
         try {
-            await saveUserSettings(user.uid, { igAccount, igChecked: false });
-            await new Promise(r => setTimeout(r, 8000));
-            const res = await getUserIG(user.uid);
+            await saveUserSettings(user.uid, { igAccount });
 
-            if (res?.igChecked) {
+            const idToken = await user.getIdToken();
+            const response = await api.post(
+                "/api/verify-ig-account",
+                {
+                    uid: user.uid,
+                    igAccount
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${idToken}`
+                    }
+                }
+            );
+
+            if (response.data.success) {
                 setIgStatus({ type: "success", message: "IG connected." });
                 setIgAccount({
                     apiKey: "",
@@ -308,8 +328,16 @@ export default function Settings() {
                     accountType: "CFD"
                 });
             } else {
-                setIgStatus({ type: "error", message: "IG validation failed." });
+                setIgStatus({
+                    type: "error",
+                    message: response.data.message || "IG validation failed."
+                });
             }
+        } catch (error) {
+            setIgStatus({
+                type: "error",
+                message: error.response?.data?.message || "IG validation failed."
+            });
         } finally {
             setIgLoading(false);
         }
@@ -317,6 +345,9 @@ export default function Settings() {
 
     // ---------------- UI ----------------
 
+    const Spinner = () => (
+        <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+    );
     const card = "bg-[#11161d] border border-[#1f2933] rounded-xl p-5 w-full";
     const input = "w-full p-2 rounded bg-[#0b0f14] border border-[#1f2933]";
     const btn = "px-4 py-2 text-sm font-semibold rounded border border-[#1f2933]";
@@ -447,9 +478,22 @@ export default function Settings() {
                             onChange={e => setIgAccount({ ...igAccount, [k]: e.target.value })}
                         />
                     ))}
-                    <button onClick={handleIGConnect} disabled={igLoading} className={`${btn} mt-3 text-purple-400`}>
-                        {igLoading ? "Connecting..." : "Connect"}
+                    <button
+                        onClick={handleIGConnect}
+                        disabled={igLoading}
+                        className={`${btn} mt-3 text-purple-400 flex items-center justify-center gap-2 ${igLoading ? "opacity-60 cursor-not-allowed" : ""
+                            }`}
+                    >
+                        {igLoading ? (
+                            <>
+                                <Spinner />
+                                Connecting...
+                            </>
+                        ) : (
+                            "Connect"
+                        )}
                     </button>
+
                     {statusBox(igStatus)}
                 </div>
 

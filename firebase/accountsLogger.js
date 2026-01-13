@@ -30,42 +30,6 @@ async function executeTradeOnAllAccounts(entryData) {
     })
 }
 
-async function accountsApproval() {
-    const processAccounts = async () => {
-        const snapshot = await getData("UserSettings");
-        if (!snapshot || snapshot.empty) return;
-
-        for (const doc of snapshot.docs) {
-            const data = doc.data();
-            const igAccount = data.igAccount;
-            // 1️⃣ Check Telegram
-            if (data.telegramChecked === false && data.telegramChecked !== undefined) {
-                sendTelegramMessageID(`Checking Telegram chat ID`, { parse_mode: "Markdown" }, data.telegramChatId);
-                await telegramChecked(doc.id);
-            }
-
-            // 3️⃣ IG account not checked yet
-            if (data.igChecked === false && data.igChecked !== undefined && data.igUndefined === false && data.igUndefined !== undefined) {
-                try {
-                    const authHeaders = await login(igAccount.apiKey, igAccount.username, igAccount.password);
-                    const account = await getAccount(igAccount.accountID, authHeaders);
-                    await igMarketsChecked(doc.id);
-                    const balance = account.balance.balance;
-                    await saveUserBalance(doc.id, balance);
-                } catch (err) {
-                    console.log("Error checking IG account", doc.id);
-                    await igMarketsundefiened(doc.id);
-                }
-            }
-        }
-
-        // Schedule next run
-        setTimeout(processAccounts, 5 * 1000); // 5 seconds
-    };
-
-    await processAccounts();
-}
-
 async function updateBalance () {
     const processAccounts = async () => {
         const snapshot = await getData("UserSettings");
@@ -96,4 +60,4 @@ async function updateBalance () {
 }
 
 
-module.exports = { executeTradeOnAllAccounts, accountsApproval, updateBalance }
+module.exports = { executeTradeOnAllAccounts, updateBalance }
