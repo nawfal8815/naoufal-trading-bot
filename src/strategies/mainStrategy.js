@@ -187,30 +187,35 @@ async function runStrategy() {
             } else {
                 //place trade
                 const entryData = await getEntryData(fvg, result.entryCandle, signal.potential);
-                console.log("Placing trade with entry data: Entry price " + entryData.entryPrice + ", Stop lose " + entryData.sl + ", Take profit " + entryData.tp);
+                const displayedEntryData = {
+                    entryPrice: entryData.entryPrice / config.risk.multiplyer,
+                    tp: entryData.tp / config.risk.multiplyer,
+                    sl: entryData.sl / config.risk.multiplyer
+                }
+                console.log("Placing trade with entry data: Entry price " + displayedEntryData.entryPrice + ", Stop lose " + displayedEntryData.sl + ", Take profit " + displayedEntryData.tp);
                 await executeTradeOnAllAccounts(entryData);
-                await saveLog("Placing trade with entry data: Entry price " + entryData.entryPrice + ", Stop lose " + entryData.sl + ", Take profit " + entryData.tp);
+                await saveLog("Placing trade with entry data: Entry price " + displayedEntryData.entryPrice + ", Stop lose " + displayedEntryData.sl + ", Take profit " + displayedEntryData.tp);
                 console.log("Trade placed with succes.");
                 await saveLog("Trade placed with succes.");
                 telegramUsersSender(
                     `🚀 *Trade Confirmed! ${config.symbol}*
                     Bias: ${signal.potential}
-                    Entry Price: ${entryData.entryPrice}
-                    Stop Loss: ${entryData.stopLoss}
-                    Take Profit: ${entryData.takeProfit}
+                    Entry Price: ${displayedEntryData.entryPrice}
+                    Stop Loss: ${displayedEntryData.sl}
+                    Take Profit: ${displayedEntryData.tp}
                     `, { parse_mode: "Markdown" });
 
                 tradesToday++;
                 const positionDB = {
                     direction: signal.potential,
-                    entryPrice: entryData.entryPrice,
-                    stopLoss: entryData.sl,
-                    takeProfit: entryData.tp,
+                    entryPrice: displayedEntryData.entryPrice,
+                    stopLoss: displayedEntryData.sl,
+                    takeProfit: displayedEntryData.tp,
                     epic: "CS.D.EURUSD.CFD.IP" // Hardcoded for now, can be passed later
                 }
                 await savePosition(positionDB);
 
-                monitorTrade(entryData.tp, entryData.sl, signal.potential);
+                monitorTrade(displayedEntryData.tp, displayedEntryData.sl, signal.potential);
                 if (tradesToday === config.risk.maxTreadesPerDay) {
                     tradesToday = 0;
                     console.log("Max trades amount for today has been reached, restarting...");
