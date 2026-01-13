@@ -4,6 +4,7 @@ const { fetchLatestClosedCandle } = require('../api/dataFeed');
 const { is15MinBoundary } = require('../utils/date');
 const { postData } = require('../server/apiClient');
 const { saveLivePrice } = require('../../firebase/queries');
+const config = require ('../../config/config');
 
 async function monitorFVG({ fvg, signal }) {
     if (!fvg) return { status: "expired" };
