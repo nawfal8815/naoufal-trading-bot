@@ -191,9 +191,9 @@ async function runStrategy() {
                 //place trade
                 const entryData = await getEntryData(fvg, result.entryCandle, signal.potential);
                 const displayedEntryData = {
-                    entryPrice: entryData.entryPrice / config.risk.multiplyer,
-                    tp: entryData.tp / config.risk.multiplyer,
-                    sl: entryData.sl / config.risk.multiplyer
+                    entryPrice: entryData.entryPrice / config.risk.slMultipler,
+                    tp: entryData.tp / config.risk.slMultipler,
+                    sl: entryData.sl / config.risk.slMultipler
                 }
                 console.log("Placing trade with entry data: Entry price " + displayedEntryData.entryPrice + ", Stop lose " + displayedEntryData.sl + ", Take profit " + displayedEntryData.tp);
                 await executeTradeOnAllAccounts(entryData);
