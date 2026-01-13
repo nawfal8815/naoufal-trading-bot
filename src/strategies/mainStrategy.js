@@ -187,9 +187,9 @@ async function runStrategy() {
             } else {
                 //place trade
                 const entryData = await getEntryData(fvg, result.entryCandle, signal.potential);
-                console.log("Placing trade with entry data:", entryData);
+                console.log("Placing trade with entry data: Entry price " + entryData.entryPrice + ", Stop lose " + entryData.sl + ", Take profit " + entryData.tp);
                 await executeTradeOnAllAccounts(entryData);
-                await saveLog("Placing trade with entry data: " + entryData);
+                await saveLog("Placing trade with entry data: Entry price " + entryData.entryPrice + ", Stop lose " + entryData.sl + ", Take profit " + entryData.tp);
                 console.log("Trade placed with succes.");
                 await saveLog("Trade placed with succes.");
                 telegramUsersSender(
@@ -210,7 +210,7 @@ async function runStrategy() {
                 }
                 await savePosition(positionDB);
 
-                monitorTrade(entryData.takeProfit, entryData.stopLoss, signal.potential);
+                monitorTrade(entryData.tp, entryData.sl, signal.potential);
                 if (tradesToday === config.risk.maxTreadesPerDay) {
                     tradesToday = 0;
                     console.log("Max trades amount for today has been reached, restarting...");
