@@ -299,7 +299,7 @@ export default function MarketCanvas({ candles, fvgs, bias, dailyTargetPrice }) 
                 const targetStartX = datetimeToX(firstCandleOfCurrentDay.datetime);
                 const targetEndX = datetimeToX(sorted[sorted.length - 1].datetime) + candleWidth; // Extend to the end of the latest candle
 
-                ctx.strokeStyle = "teal"; // Yellow color for target line
+                ctx.strokeStyle = "teal"; // teal color for target line
                 ctx.lineWidth = 1.5;
                 ctx.setLineDash([5, 5]); // Dashed line
 

@@ -75,4 +75,8 @@ const getNews = async () => {
     return news;
 };
 
+(async () => {
+    console.log(await getNews());
+}) ();
+
 module.exports = { getNews }

@@ -93,7 +93,7 @@ export async function getUserIG(uid, colName = "UserSettings") {
 export async function getLogs(colName = "Logs") {
     const q = query(
         collection(db, colName),
-        orderBy("createdAt", "asc")
+        orderBy("createdAt", "desc")
     );
 
     const snap = await getDocs(q);
