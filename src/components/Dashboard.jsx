@@ -380,7 +380,7 @@ export default function Dashboard() {
                             >
                                 {signal.potential.toUpperCase()}
                                 <p className="text-xs text-gray-500 tracking-wide mt-5">
-                                    Higher timeframe direction
+                                    Daily timeframe direction
                                 </p>
                             </div>
 
@@ -660,7 +660,21 @@ export default function Dashboard() {
                 {/* Canvas */}
                 
                 {candles && (
-                    <MarketCanvas candles={candles} />
+                    <MarketCanvas
+                        candles={candles}
+                        fvgs={fvg ? [{
+                            startTime: fvg.createdAt,
+                            topPrice: fvg.gapHigh,
+                            bottomPrice: fvg.gapLow,
+                        }] : []}
+                        bias={signal?.potential?.toLowerCase() === "buy" ? "bullish" :
+                            signal?.potential?.toLowerCase() === "sell" ? "bearish" :
+                                fvg?.type?.toLowerCase() === "bullish" ? "bullish" :
+                                    fvg?.type?.toLowerCase() === "bearish" ? "bearish" :
+                                        "neutral"
+                        }
+                        dailyTargetPrice={dailyInfo?.target || null}
+                    />
                 )}
 
                 {/* GUIDANCE BUTTON */}

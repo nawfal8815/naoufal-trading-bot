@@ -17,6 +17,7 @@ async function saveDailyInfo(data) {
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             bias: data.bias,
             tradeQuality: data.quality,
+            target: data.target,
             fvg: data.fvg
         });
     } catch (err) {

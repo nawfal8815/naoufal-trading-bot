@@ -1,5 +1,5 @@
 function detectAlignment(prev, curr) {
-    if (!prev || !curr) return { type: "none", side: null, level: null , target: null};
+    if (!prev || !curr) return { type: "none", side: null, level: null, target: null };
 
     const bodyUpper = Math.max(curr.open, curr.close);
     const bodyLower = Math.min(curr.open, curr.close);
@@ -27,7 +27,7 @@ function detectAlignment(prev, curr) {
     }
 
     if (inRange(prevLow, lowerWickMin, lowerWickMax)) {
-        signals.push({ type: "WR", side: "bullish", level: prevLow , target: curr.high });
+        signals.push({ type: "WR", side: "bullish", level: prevLow, target: curr.high });
     }
 
     // ---- BODY CLOSURE (BC) ----
@@ -36,7 +36,7 @@ function detectAlignment(prev, curr) {
     }
 
     if (inRange(prevLow, bodyLower, bodyUpper)) {
-        signals.push({ type: "BC", side: "bearish", level: prevLow , target: curr.low });
+        signals.push({ type: "BC", side: "bearish", level: prevLow, target: curr.low });
     }
 
     // ---- CONFLICT CHECK ----
@@ -45,7 +45,7 @@ function detectAlignment(prev, curr) {
         return { type: "conflict", side: null, level: null };
     }
 
-    if (signals.length === 0) return { type: "none", side: null, level: null };
+    if (signals.length === 0) return { type: "none", side: null, level: null, target: null };
 
     return signals[0];
 }
@@ -57,7 +57,7 @@ function mapSignal(result) {
     }
 
     if (result.type === "WR") {
-        if (result.side === "bearish") return { potential: "sell" , target: result.target, targetValid: true};
+        if (result.side === "bearish") return { potential: "sell", target: result.target, targetValid: true };
         if (result.side === "bullish") return { potential: "buy", target: result.target, targetValid: true };
     }
 
