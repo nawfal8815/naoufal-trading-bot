@@ -1,4 +1,4 @@
-function detectAlignment(prev, curr) {
+function detectAlignment(prev, curr, lastCandle) {
     if (!prev || !curr) return { type: "none", side: null, level: null, target: null };
 
     const bodyUpper = Math.max(curr.open, curr.close);
@@ -23,20 +23,20 @@ function detectAlignment(prev, curr) {
 
     // ---- WEAK REJECTION (WR) ----
     if (inRange(prevHigh, upperWickMin, upperWickMax)) {
-        signals.push({ type: "WR", side: "bearish", level: prevHigh, target: curr.low });
+        signals.push({ type: "WR", side: "bearish", level: prevHigh, target: lastCandle.low });
     }
 
     if (inRange(prevLow, lowerWickMin, lowerWickMax)) {
-        signals.push({ type: "WR", side: "bullish", level: prevLow, target: curr.high });
+        signals.push({ type: "WR", side: "bullish", level: prevLow, target: lastCandle.high });
     }
 
     // ---- BODY CLOSURE (BC) ----
     if (inRange(prevHigh, bodyLower, bodyUpper)) {
-        signals.push({ type: "BC", side: "bullish", level: prevHigh, target: curr.high });
+        signals.push({ type: "BC", side: "bullish", level: prevHigh, target: lastCandle.high });
     }
 
     if (inRange(prevLow, bodyLower, bodyUpper)) {
-        signals.push({ type: "BC", side: "bearish", level: prevLow, target: curr.low });
+        signals.push({ type: "BC", side: "bearish", level: prevLow, target: lastCandle.low });
     }
 
     // ---- CONFLICT CHECK ----

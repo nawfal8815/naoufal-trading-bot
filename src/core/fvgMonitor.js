@@ -46,7 +46,9 @@ async function monitorFVG({ fvg, signal }) {
             console.log(`🏁 ${signal.potential} Target ${signal.target} was reached today before FVG was touched, the trade will be risky`);
             messageDisplayed = true;
         }
-
+        if (signal.targetValid) {
+            console.log(`🎯 Target of today: ${signal.target}`);
+        }
         await sleep(2.5 * 60 * 1000); // 2.5 minute polling
     }
 

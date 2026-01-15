@@ -30,6 +30,22 @@ function isFullyCompleted(candleTime) {
     return timeDiffMs >= fifteenMinutesMs;
 }
 
+function toUtcTimestamp(datetime) {
+    // Converts "YYYY-MM-DD HH:mm:ss" → UTC timestamp
+    return Date.parse(datetime.replace(" ", "T") + "Z");
+}
+
+function sameUtcDay(ts1, ts2) {
+    const d1 = new Date(ts1);
+    const d2 = new Date(ts2);
+    return (
+        d1.getUTCFullYear() === d2.getUTCFullYear() &&
+        d1.getUTCMonth() === d2.getUTCMonth() &&
+        d1.getUTCDate() === d2.getUTCDate()
+    );
+}
+
+
 
 
 function findFVGs(candles) {
@@ -47,7 +63,7 @@ function findFVGs(candles) {
             // ❌ reject fake gaps
             if (gapSize < 0.00005) continue; // ~0.5 pip
 
-            const FVGmid = c1.low - ((c1.low - c3.high) / 2);
+            const FVGmid = c1.low - (gapSize / 2);
             fvgList.push({
                 type: "bullish",
                 createdAt: c1.datetime,
@@ -65,7 +81,7 @@ function findFVGs(candles) {
             // ❌ reject fake gaps
             if (gapSize < 0.00005) continue; // ~0.5 pip
 
-            const FVGmid = c3.low - ((c3.low - c1.high) / 2);
+            const FVGmid = c3.low - (gapSize / 2);
             fvgList.push({
                 type: "bearish",
                 createdAt: c1.datetime,
@@ -83,10 +99,15 @@ function findFVGs(candles) {
 
 function isVirginFVG(fvg, candles, signal) {
     let touched = false;
+    const nowTs = Date.now();
 
     for (const c of candles) {
         // only candles AFTER creation
-        if (new Date(c.datetime) <= new Date(fvg.createdAt)) continue;
+        const candleTs = toUtcTimestamp(c.datetime);
+        const fvgTs = toUtcTimestamp(fvg.createdAt);
+
+        if (candleTs <= fvgTs) continue;
+
 
         // ---- BULLISH FVG ----
         if (signal.potential === "buy") {
@@ -95,9 +116,16 @@ function isVirginFVG(fvg, candles, signal) {
                 return null;
             }
 
-            if (signal.targetValid) {
-                if (signal.target < c.high) signal.targetValid = false;
+
+
+            if (
+                signal.targetValid &&
+                sameUtcDay(candleTs, nowTs) &&
+                signal.target < c.high
+            ) {
+                signal.targetValid = false;
             }
+
 
             // touched but still valid (50%)
             if (c.low <= fvg.gapHigh && c.low >= fvg.gapMid) {
@@ -112,9 +140,14 @@ function isVirginFVG(fvg, candles, signal) {
                 return null;
             }
 
-            if (signal.targetValid) {
-                if (signal.target > c.low) signal.targetValid = false;
+            if (
+                signal.targetValid &&
+                sameUtcDay(candleTs, nowTs) &&
+                signal.target > c.low
+            ) {
+                signal.targetValid = false;
             }
+
 
             // touched but still valid (50%)
             if (c.high >= fvg.gapLow && c.high <= fvg.gapMid) {
@@ -123,18 +156,9 @@ function isVirginFVG(fvg, candles, signal) {
         }
     }
 
-    // ---- RESULT ----
-    if (!touched) {
-        return {
-            ...fvg,
-            fullVirgin: true
-        };
-    }
-
-    // 50% virgin → shrink to midpoint
     return {
         ...fvg,
-        fullVirgin: false
+        fullVirgin: !touched
     };
 }
 

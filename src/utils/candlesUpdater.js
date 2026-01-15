@@ -9,13 +9,17 @@ async function updateCandlesData() {
         const now = new Date();
         if (is15MinBoundary(now) || true) {
             const candle = await fetchLatestClosedCandle();
+            if (!candle || !candle.datetime) {
+                console.log("⚠️ Error getting the candle data");
+                return;
+            }
             await postData({
                 type: "candles",
                 timestamp: new Date().toISOString(),
                 candles: [candle]
             });
         }
-        await sleep(30 * 1000); //check for close candles every 30 secs
+        await sleep(60 * 1000); //check for close candles every 60 secs
         await updateCandlesData();
     } catch (err) {
         console.log("Last candle error:", err);

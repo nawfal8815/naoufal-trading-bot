@@ -20,15 +20,8 @@ let strategyRunning = false; // prevent overlapping runs
 let tradesToday = 0;
 
 async function runStrategy() {
-    const processId = Math.random().toString(36).substring(2, 9); // Unique ID for this process invocation
 
-    if (strategyRunning) {
-        console.log(`[${processId}] Strategy already running, preventing overlap.`);
-        return;
-    }
-    strategyRunning = true;
-    console.log(`[${processId}] Starting strategy...`);
-    await saveLog(`[${processId}] Starting strategy...`);
+    // await saveLog(`[${processId}] Starting strategy...`);
 
 
     //running main strategy logic
@@ -36,7 +29,18 @@ async function runStrategy() {
         //init collections
         await initCollections();
 
-        //start accounts confirmator timeline every 5 secs and balance getter every 10 mins
+        //generate a process id
+        const processId = Math.random().toString(36).substring(2, 9); // Unique ID for this process invocation
+
+        if (strategyRunning) {
+            console.log(`[${processId}] Strategy already running, preventing overlap.`);
+            return;
+        }
+        strategyRunning = true;
+        console.log(`[${processId}] Starting strategy...`);
+
+
+        //start balance getter every 10 mins
         updateBalance();
 
         // set Timezone
@@ -56,7 +60,8 @@ async function runStrategy() {
         }
 
         //check if its weekend
-        if (await checkIfWeekend()) {tradesToday
+        if (await checkIfWeekend()) {
+            tradesToday
             console.log("Weekend — no trading 🚫");
             await saveLog("Weekend — no trading 🚫");
             tradesToday = 0;
@@ -186,7 +191,7 @@ async function runStrategy() {
                     `, { parse_mode: "Markdown" });
                 console.log("Trade cancelled due to news impact.");
                 await saveLog("Trade cancelled due to news impact.");
-                return restartStrategy(0, processId);           
+                return restartStrategy(0, processId);
             } else {
                 //place trade
                 const entryData = await getEntryData(fvg, result.entryCandle, signal.potential);

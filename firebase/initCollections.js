@@ -11,7 +11,6 @@ async function clearCollection(collectionName) {
   snapshot.docs.forEach(doc => {
     batch.delete(doc.ref);
   });
-
   await batch.commit();
 }
 
@@ -21,7 +20,6 @@ async function initCollections() {
       // 🧹 Special case: Logs → always delete first
       if (col === "Logs") {
         await clearCollection(col);
-
         await db.collection(col).add({
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           _init: true,

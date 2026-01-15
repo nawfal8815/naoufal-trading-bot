@@ -9,13 +9,13 @@ async function scanForSignal() {
         await saveLog("No FX data available.");
         return;
     }
-
+    const lastCandle = series[0];
     // Loop over consecutive pairs: [i+1, i]
     for (let i = 0; i < series.length - 1; i++) {
         const prev = series[i + 1];
         const curr = series[i];
 
-        const alignment = detectAlignment(prev, curr);
+        const alignment = detectAlignment(prev, curr, lastCandle);
         const signal = mapSignal(alignment);
 
         if (signal.potential !== "none") {

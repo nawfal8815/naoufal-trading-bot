@@ -40,7 +40,7 @@ async function requestWithKeyRotation(url, params) {
 
       // 🚨 TwelveData returns rate limit INSIDE payload
       if (res.data?.code === 429) {
-        console.warn("⚠️ TwelveData credit limit hit, rotating key...");
+        console.warn("⚠️ TwelveData credit limit hit, rotating key...", apikey);
         lastError = new Error(res.data.message);
         continue;
       }
