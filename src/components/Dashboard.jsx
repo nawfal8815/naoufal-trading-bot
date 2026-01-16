@@ -271,10 +271,11 @@ export default function Dashboard() {
 
     const percentage = dailyInfo?.tradeQuality ?? null;
     const tradeGrade =
-        percentage >= 80 ? "A+" :
-            percentage >= 70 ? "A" :
-                percentage >= 60 ? "B" :
-                    percentage >= 50 ? "C" : "D";
+        percentage >= 90 ? "S" :
+            percentage >= 80 ? "A+" :
+                percentage >= 70 ? "A" :
+                    percentage >= 60 ? "B" : 
+                        percentage >= 50 ? "C" : "D";
 
     const fvg = dailyInfo?.fvg ?? null;
 
@@ -430,59 +431,44 @@ export default function Dashboard() {
                         <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-4">
                             Trade Quality
                         </h3>
+                        <div className="flex items-start gap-5">
 
-                        {percentage && !isWeekend ? (
-                            <div className="flex items-start gap-5">
+                            {/* RING + STATUS COLUMN */}
+                            <div className="flex flex-col items-center gap-3">
 
-                                {/* RING + STATUS COLUMN */}
-                                <div className="flex flex-col items-center gap-3">
-
-                                    {/* RING CONTAINER */}
-                                    <div className="flex items-center justify-center w-24 h-24 rounded-full bg-[#0b1016] border border-[#1f2933] shadow-inner">
-                                        <div
-                                            className="relative w-20 h-20 rounded-full flex items-center justify-center"
-                                            style={{
-                                                background:
-                                                    percentage >= 60
-                                                        ? `conic-gradient(#2dd4bf ${percentage * 3.6}deg, #1f2933 0deg)`
-                                                        : `conic-gradient(#fb7185 ${percentage * 3.6}deg, #1f2933 0deg)`
-                                            }}
-                                        >
-                                            <div className="absolute w-14 h-14 rounded-full bg-[#0f141b] flex items-center justify-center shadow-md">
-                                                <span className="text-xl font-extrabold text-white">
-                                                    {tradeGrade}
-                                                </span>
-                                            </div>
+                                {/* RING CONTAINER */}
+                                <div className="flex items-center justify-center w-24 h-24 rounded-full bg-[#0b1016] border border-[#1f2933] shadow-inner">
+                                    <div
+                                        className="relative w-20 h-20 rounded-full flex items-center justify-center"
+                                        style={{
+                                            background:
+                                                percentage >= 60 && percentage !== null
+                                                    ? `conic-gradient(#2dd4bf ${percentage * 3.6}deg, #1f2933 0deg)`
+                                                    : `conic-gradient(#fb7185 ${40 * 3.6}deg, #1f2933 0deg)`
+                                        }}
+                                    >
+                                        <div className="absolute w-14 h-14 rounded-full bg-[#0f141b] flex items-center justify-center shadow-md">
+                                            <span className="text-xl font-extrabold text-white">
+                                                {tradeGrade}
+                                            </span>
                                         </div>
                                     </div>
-
-                                    {/* FVG STATUS UNDER RING */}
-                                    {fvgStatus && (
-                                        <div className="text-center">
-                                            <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">
-                                                FVG Status
-                                            </p>
-                                            <p className="text-sm font-semibold text-teal-400 leading-snug">
-                                                {fvgStatus}
-                                            </p>
-                                        </div>
-                                    )}
-
                                 </div>
 
+                                {/* FVG STATUS UNDER RING */}
+                                {fvgStatus && (
+                                    <div className="text-center">
+                                        <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">
+                                            FVG Status
+                                        </p>
+                                        <p className="text-sm font-semibold text-teal-400 leading-snug">
+                                            {fvgStatus}
+                                        </p>
+                                    </div>
+                                )}
 
                             </div>
-                        ) : (
-                            <div className="flex items-start gap-5">
-                                {isWeekend ?
-                                    <p className="text-gray-400 font-semibold">
-                                        Quality will be showen on Monday.
-                                    </p> : <p className="text-gray-400 font-semibold">
-                                        No trade quality data
-                                    </p>
-                                }
-                            </div>
-                        )}
+                        </div>
 
                     </div>
 

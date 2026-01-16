@@ -98,10 +98,14 @@ async function runStrategy() {
                 `⚠️ *Trading Skipped Today*
                 High impact news events detected for ${config.symbol}. No trades will be taken today.
             `, { parse_mode: "Markdown" });
+            tradesToday = 0;
+            console.log("Trading skipped for today due to high-impact news events.");
+            await saveLog("Trading skipped for today due to high-impact news events.");
+            await sleepUntilNextAsiaSession();
             return restartStrategy(0, processId); // restart fresh next day
-        } else if (newsRules.blockTimes.length > 0) {
-            config.tradeQuality -= 20;
-        } else if (newsRules.warnTimes.length > 0) config.tradeQuality -= 10;
+        } else config.tradeQuality += 40;
+        if (newsRules.blockTimes.length === 0) config.tradeQuality += 20;
+        if (newsRules.warnTimes.length === 0) config.tradeQuality += 10;
 
         await sleep(2000); // brief pause before proceeding
 
@@ -131,7 +135,7 @@ async function runStrategy() {
             return restartStrategy(0, processId);
         }
 
-        if (!fvg.fullVirgin) config.tradeQuality -= 10;
+        if (fvg.fullVirgin) config.tradeQuality += 10;
 
 
 
@@ -157,8 +161,11 @@ async function runStrategy() {
         await sleep(2000); // brief pause before proceeding
 
         //to add later: check if the market is ranged or trending before monitoring FVG
+        // if (isMarketRanged()) config.tradeQuality += 10;
         // 10% quality of the trade if its not ranged
         //TO DO!!
+
+        if (signal.targetValid) config.tradeQuality += 10;
 
         const dailyInfoDB = {
             bias: signal.potential,

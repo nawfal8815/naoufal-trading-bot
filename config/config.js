@@ -10,7 +10,7 @@ module.exports = {
     candles15needed: 4 * 24 * 50, //7 days of candles
     port: process.env.PORT,
     url: process.env.URL,
-    tradeQuality: 100,
+    tradeQuality: 0,
     botApiKey: process.env.BOT_API_KEY,
 
     risk: {
