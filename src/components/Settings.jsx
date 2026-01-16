@@ -125,9 +125,10 @@ export default function Settings() {
     const isPasswordUser = providers.includes("password");
 
     const authEmail = user.email;
+    console.log(authEmail);
     const authName = user.displayName;
 
-    const githubHasProfile = isGithubUser && authEmail !== null && authName !== null;
+    const hasProfile = isGithubUser && authEmail !== null && authName !== null;
 
     const canEditEmail =
         isPasswordUser ||
@@ -142,87 +143,112 @@ export default function Settings() {
 
     // ---------------- PROFILE SAVE ----------------
 
-    async function handleSaveProfile() {
-        if (!user) return;
+    async function checkIfExists({ email, displayName }) {
+        const idToken = await user.getIdToken();
+        const response = await api.post("/api/check-user-exists", {
+            user: user.uid,
+            email,
+            displayName
+        },
+            {
+                headers: {
+                    Authorization: `Bearer ${idToken}`
+                }
+            });
+        return response;
+    }
+
+    async function handleSaveEmail() {
+        if (!user || !canEditEmail) return;
+
         try {
-            if (isGoogleUser) return;
-            // GITHUB USERS: check if they already have email/username
-            if (isGithubUser && !isPasswordUser) {
-
-                if (authEmail !== null && authName !== null) {
-                    return;
-                }
-
-                // If either missing, allow adding
-                if (newEmail || newName) {
-                    if (newEmail) {
-                        try {
-                            await updateEmail(user, newEmail);
-                        } catch (err) {
-                            console.error("AUTH UPDATE ERROR:", err.message);
-                            setProfileStatus("AUTH UPDATE ERROR")
-                            return;
-                        }
-                    }
-
-                    if (newName) {
-                        try {
-                            await updateProfile(user, { displayName: newName });
-                        } catch (err) {
-                            console.error("AUTH UPDATE ERROR:", err.message);
-                            setProfileStatus("Failed to update username");
-                            return;
-                        }
-                    }
-
-                    setProfileStatus("GitHub profile updated successfully.");
-                    setNewEmail("");
-                    setNewName("");
-                    return;
-                } else {
-                    alert("Nothing to update for GitHub user.");
-                    return;
-                }
+            if (!newEmail || newEmail === user.email) {
+                setProfileStatus({ type: "error", message: "Nothing to update." });
+                return;
             }
 
-            // EMAIL/PASSWORD USERS: can update everything
+            // 🔍 check existence
+            const { data } = await checkIfExists({ email: newEmail });
+            if (data.emailExists) {
+                setProfileStatus({ type: "error", message: "Email already exists." });
+                return;
+            }
+
+            // 🔐 REAUTHENTICATE
             if (isPasswordUser) {
-                let updated = false;
-
-                if (newEmail !== null && newEmail !== user.email) {
-                    try {
-                        await sendEmailVerification(user);
-                        await updateEmail(user, newEmail);
-                        updated = true;
-                    } catch (err) {
-                        console.error("AUTH UPDATE ERROR:", err.message);
-                        setProfileStatus("Failed to update email");
-                    }
+                if (!oldPassword) {
+                    setProfileStatus({
+                        type: "error",
+                        message: "Please enter your password to change email."
+                    });
+                    return;
                 }
-
-                if (newName !== null && newName !== user.displayName) {
-                    try {
-                        await updateProfile(user, { displayName: newName });
-                        updated = true;
-                    } catch (err) {
-                        console.error("AUTH UPDATE ERROR:", err.message);
-                        setProfileStatus("Failed to update username");
-                    }
-                }
-
-                if (updated) {
-                    setProfileStatus("Profile updated successfully.");
-                    setNewEmail("");
-                    setNewName("");
-                } else {
-                    setProfileStatus("Nothing to update.");
-                }
+                await reauthPasswordUser(oldPassword);
             }
+
+            if (isGithubUser) {
+                await reauthGithub();
+            }
+
+            // ✉️ VERIFY + UPDATE
+            await verifyBeforeUpdateEmail(user, newEmail);
+
+            setProfileStatus({
+                type: "success",
+                message: "Verification email sent. Confirm to complete the change."
+            });
+
+            setEditingEmail(false);
+            setNewEmail("");
+            setOldPassword("");
+
         } catch (err) {
-            console.error("AUTH UPDATE ERROR:", err.message);
-            setProfileStatus("An unexpected error occurred");
+            console.error(err);
+
+            if (err.code === "auth/wrong-password") {
+                setProfileStatus({ type: "error", message: "Incorrect password." });
+            } else if (err.code === "auth/popup-closed-by-user") {
+                setProfileStatus({ type: "error", message: "Reauthentication cancelled." });
+            } else {
+                setProfileStatus({
+                    type: "error",
+                    message: err.message || "Failed to update email."
+                });
+            }
         }
     }
+
+
+
+    async function handleSaveName() {
+        if (!user || !canEditName) return;
+
+        try {
+            if (!newName || newName === user.displayName) {
+                setProfileStatus({ type: "error", message: "Nothing to update." });
+                return;
+            }
+
+            // 🔍 check existence
+            const { data } = await checkIfExists({ displayName: newName });
+
+            if (data.displayNameExists) {
+                setProfileStatus({ type: "error", message: "Username already exists." });
+                return;
+            }
+
+            await updateProfile(user, { displayName: newName });
+
+            setProfileStatus({ type: "success", message: "Username updated successfully." });
+            setEditingName(false);
+            setNewName("");
+
+        } catch (err) {
+            console.error(err);
+            setProfileStatus({ type: "error", message: "Failed to update username." });
+        }
+    }
+
 
 
 
@@ -380,66 +406,90 @@ export default function Settings() {
                     <div className="flex-1 space-y-2">
 
                         {/* EMAIL */}
-                        {!editingEmail ? (
-                            <div className="flex gap-2 items-center">
-                                <p>{authEmail || "No email"}</p>
-                                {canEditEmail && (
-                                    <button
-                                        className="text-xs text-blue-400"
-                                        onClick={() => {
-                                            setEditingEmail(true);
-                                            setNewEmail(authEmail || "");
-                                        }}
-                                    >
-                                        Edit
-                                    </button>
-                                )}
-                            </div>
-                        ) : (
-                            <input
-                                className={input}
-                                value={newEmail}
-                                onChange={e => setNewEmail(e.target.value)}
-                                placeholder="Email"
-                            />
-                        )}
+                        <div className="space-y-1">
+                            {!editingEmail ? (
+                                <div className="flex gap-2 items-center">
+                                    <p>{authEmail || "No email"}</p>
+                                    {canEditEmail && (
+                                        <button
+                                            className="text-xs text-blue-400"
+                                            onClick={() => {
+                                                setEditingEmail(true);
+                                                setNewEmail(authEmail || "");
+                                            }}
+                                        >
+                                            Edit
+                                        </button>
+                                    )}
+                                </div>
+                            ) : (
+                                <>
+                                    <input
+                                        className={input}
+                                        value={newEmail}
+                                        onChange={e => setNewEmail(e.target.value)}
+                                        placeholder="Email"
+                                    />
+                                    <div className="flex gap-2">
+                                        <button onClick={handleSaveEmail} className="text-green-400 text-xs">
+                                            Save Email
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setEditingEmail(false);
+                                                setNewEmail("");
+                                            }}
+                                            className="text-gray-400 text-xs"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
 
                         {/* NAME */}
-                        {!editingName ? (
-                            <div className="flex gap-2 items-center">
-                                <p>{authName || "No username"}</p>
-                                {canEditName && (
-                                    <button
-                                        className="text-xs text-blue-400"
-                                        onClick={() => {
-                                            setEditingName(true);
-                                            setNewName(authName || "");
-                                        }}
-                                    >
-                                        Edit
-                                    </button>
-                                )}
-                            </div>
-                        ) : (
-                            <input
-                                className={input}
-                                value={newName}
-                                onChange={e => setNewName(e.target.value)}
-                                placeholder="Username"
-                            />
-                        )}
-
-                        {(editingEmail || editingName) && (
-                            <div className="flex gap-2">
-                                <button onClick={handleSaveProfile} className="text-green-400 text-xs">Save</button>
-                                <button onClick={() => {
-                                    setEditingEmail(false);
-                                    setEditingName(false);
-                                }} className="text-gray-400 text-xs">
-                                    Cancel
-                                </button>
-                            </div>
-                        )}
+                        <div className="space-y-1">
+                            {!editingName ? (
+                                <div className="flex gap-2 items-center">
+                                    <p>{authName || "No username"}</p>
+                                    {canEditName && (
+                                        <button
+                                            className="text-xs text-blue-400"
+                                            onClick={() => {
+                                                setEditingName(true);
+                                                setNewName(authName || "");
+                                            }}
+                                        >
+                                            Edit
+                                        </button>
+                                    )}
+                                </div>
+                            ) : (
+                                <>
+                                    <input
+                                        className={input}
+                                        value={newName}
+                                        onChange={e => setNewName(e.target.value)}
+                                        placeholder="Username"
+                                    />
+                                    <div className="flex gap-2">
+                                        <button onClick={handleSaveName} className="text-green-400 text-xs">
+                                            Save Username
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setEditingName(false);
+                                                setNewName("");
+                                            }}
+                                            className="text-gray-400 text-xs"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
 
                         {statusBox(profileStatus)}
                     </div>

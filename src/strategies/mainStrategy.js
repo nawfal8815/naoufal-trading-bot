@@ -15,6 +15,7 @@ const { setTimeZone, checkIfWeekend } = require("../utils/date");
 const { initCollections } = require('../../firebase/initCollections');
 const { saveLog, saveDailyInfo, saveNews, savePosition } = require('../../firebase/queries');
 const { updateCandlesData, updatePriceData } = require('../utils/candlesUpdater');
+const chalk = require('chalk').default;
 
 let strategyRunning = false; // prevent overlapping runs
 let tradesToday = 0;
@@ -33,11 +34,11 @@ async function runStrategy() {
         const processId = Math.random().toString(36).substring(2, 9); // Unique ID for this process invocation
 
         if (strategyRunning) {
-            console.log(`[${processId}] Strategy already running, preventing overlap.`);
+            console.log(`[${chalk.green(processId)}]: Strategy already running, preventing overlap.`);
             return;
         }
         strategyRunning = true;
-        console.log(`[${processId}] Starting strategy...`);
+        console.log(`[${chalk.green(processId)}]: Starting strategy...`);
 
 
         //start balance getter every 10 mins
@@ -178,7 +179,8 @@ async function runStrategy() {
         //monitor FVG for confirmation
         const result = await monitorFVG({
             fvg,
-            signal
+            signal,
+            processId
         });
 
 
@@ -223,7 +225,7 @@ async function runStrategy() {
                 }
                 await savePosition(positionDB);
 
-                monitorTrade(displayedEntryData.tp, displayedEntryData.sl, signal.potential);
+                monitorTrade(displayedEntryData.tp, displayedEntryData.sl, signal.potential, processId);
                 if (tradesToday === config.risk.maxTreadesPerDay) {
                     tradesToday = 0;
                     console.log("Max trades amount for today has been reached, restarting...");
@@ -253,10 +255,10 @@ async function runStrategy() {
 async function restartStrategy(delay = 0, processId) {
     strategyRunning = false;
     if (delay > 0) {
-        console.log(`[${processId}] Waiting for ${delay / 1000} seconds before restarting...`);
+        console.log(`[${chalk.blue.underline(processId)}]: Waiting for ${delay / 1000} seconds before restarting...`);
         await sleep(delay);
     }
-    console.log(`[${processId}] Restarting strategy...`);
+    console.log(`[${chalk.blue.underline(processId)}]: Restarting strategy...`);
     return runStrategy();
 }
 
