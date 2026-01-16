@@ -12,7 +12,7 @@ async function monitorFVG({ fvg, signal, processId }) {
     console.log(`[${chalk.green(processId)}]: ⏳ Waiting for price to enter FVG...`);
     await postData({
         type: "fvgStatus",
-        status: `[${processId}]: ⏳ Waiting for price to enter FVG...`
+        status: `⏳ Waiting for price to enter FVG...`
     }, {
         headers: {
             authorization: `x-bot-api-key ${config.botApiKey}` // Attach ID Token to headers
@@ -36,7 +36,7 @@ async function monitorFVG({ fvg, signal, processId }) {
             console.log(`[${chalk.green(processId)}]: 🎯 Price entered FVG: ${priceData.candle}`);
             await postData({
                 type: "fvgStatus",
-                status: `[${processId}]: 🎯 Price entered FVG: ${priceData.candle}`
+                status: `🎯 Price entered FVG: ${priceData.candle}`
             });
             break;
         }
@@ -45,7 +45,7 @@ async function monitorFVG({ fvg, signal, processId }) {
             console.log(`[${chalk.red(processId)}]: ⏱ FVG touch timeout`);
             await postData({
                 type: "fvgStatus",
-                status: `[${processId}]: ⏱ FVG touch timeout`
+                status: `⏱ FVG touch timeout`
             });
             return { status: "expired" };
         }
@@ -57,7 +57,7 @@ async function monitorFVG({ fvg, signal, processId }) {
     console.log(`[${chalk.green(processId)}]: 📊 Monitoring candles inside FVG...`);
     await postData({
         type: "fvgStatus",
-        status: `[${processId}]: 📊 Monitoring candles inside FVG...`
+        status: `📊 Monitoring candles inside FVG...`
     }, {
         headers: {
             authorization: `x-bot-api-key ${config.botApiKey}` // Attach ID Token to headers
@@ -88,7 +88,7 @@ async function monitorFVG({ fvg, signal, processId }) {
             console.log(`[${chalk.red(processId)}]: ❌ FVG expired by candle close: ${candle.close}`);
             await postData({
                 type: "fvgStatus",
-                status: `[${processId}]: ❌ FVG expired by candle close: ${candle.close}`
+                status: `❌ FVG expired by candle close: ${candle.close}`
             }, {
                 headers: {
                     authorization: `x-bot-api-key ${config.botApiKey}` // Attach ID Token to headers
@@ -102,7 +102,7 @@ async function monitorFVG({ fvg, signal, processId }) {
             console.log(`[${chalk.green(processId)}]: ✅ Confirmation candle detected!`);
             await postData({
                 type: "fvgStatus",
-                status: `[${processId}]: ✅ Confirmation candle detected!`
+                status: `✅ Confirmation candle detected!`
             }, {
                 headers: {
                     authorization: `x-bot-api-key ${config.botApiKey}` // Attach ID Token to headers
