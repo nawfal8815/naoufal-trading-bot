@@ -12,6 +12,8 @@ async function postData(data) {
 
     if (data.type === "candles") {
       await axios.post(`${API_URL}/candles`, data, { headers });
+    } else if (data.type === "telegram") {
+      await axios.post(`${API_URL}/telegram`, data, { headers });
     } else {
       await axios.post(API_URL, data, { headers });
     }

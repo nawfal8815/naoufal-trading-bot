@@ -1,7 +1,6 @@
 const { sleep } = require("./sleep");
 const config = require("../../config/config");
 const { getNextAsiaSessionDate } = require("./date");
-const { sendTelegramMessage } = require("../services/telegram");
 
 async function sleepUntilNextAsiaSession() {
     const now = new Date().toISOString();

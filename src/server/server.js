@@ -7,7 +7,7 @@ const config = require('../../config/config');
 const { login, getAccount } = require("../services/igMarkets");
 const { igMarketsChecked, igMarketsundefiened, saveUserBalance, telegramChecked } = require("../../firebase/queries");
 const { admin } = require('../../firebase/firebaseAdmin');
-const { sendTelegramMessageID } = require('../services/telegram');
+const { sendTelegramMessageID, telegramUsersSender } = require('../services/telegram');
 
 const app = express();
 const PORT = config.port || 3000;
@@ -330,7 +330,21 @@ app.delete("/api/delete-account/:type/:uid", firebaseAuthMiddleware, async (req,
   }
 });
 
+app.post("/api/data/telegram", botAuthMiddleware, async (req, res) => {
+  const msg = req.body.msg;
 
+  try {
+    await telegramUsersSender(msg, { parse_mode: "Markdown" });
+  } catch (err) {
+    console.error("Error sending telegram message:", err);
+    return res.status(500).json({ error: "Failed to send telegram message." });
+  }
+
+  return res.status(200).json({
+    success: true,
+    message: "Message sent."
+  });
+});
 
 app.get("/api/data", firebaseAuthMiddleware, (req, res) => {
   res.json(dataStore);

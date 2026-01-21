@@ -1,6 +1,6 @@
 const config = require("../../config/config");
-const { sendTelegramMessage } = require("../services/telegram");
 const { timeToMinutes } = require("../utils/date");
+const { postData } = require("../server/apiClient");
 
 async function getEntryData(fvg, candle, bias) {
     if (bias === "buy") {
@@ -69,10 +69,16 @@ async function confirmationTimeChecker(rules) {
     }
 
     if (warningIssued) {
-        sendTelegramMessage(
-            `⚠️ *Caution Advised*
+        // sendTelegramMessage(
+        //     `⚠️ *Caution Advised*
+        //     Medium-impact news events are scheduled later today for ${config.symbol}. Please trade with caution.
+        // `, { parse_mode: "Markdown" });
+        await postData({
+            type: "telegram",
+            msg: `⚠️ *Caution Advised*
             Medium-impact news events are scheduled later today for ${config.symbol}. Please trade with caution.
-        `, { parse_mode: "Markdown" });
+        `
+        });
         warningIssued = false;
     }
 

@@ -13,6 +13,10 @@ const getNews = async () => {
 
     const page = await browser.newPage();
 
+    // page.on('console', msg => {
+    //     console.log('PAGE LOG:', msg.text());
+    // });
+
     console.log('Navigating for news...');
     await page.goto('https://www.forexfactory.com/', {
         waitUntil: 'networkidle0',
@@ -23,45 +27,47 @@ const getNews = async () => {
         for (let attempt = 0; attempt < 5; attempt++) {
             const rows = document.querySelectorAll('.calendar__row:not(.calendar__row--day-breaker)');
             const data = [];
+
+
             let timeHolder = '';
 
             rows.forEach(row => {
                 const eventEl = row.querySelector('.calendar__event-title');
                 if (!eventEl || !eventEl.textContent.trim()) return;
 
-                // --- Time handling (FIX) ---
                 const timeEl = row.querySelector('.calendar__time');
-                const currentTime = timeEl?.textContent.trim();
+                const rawTime = timeEl?.textContent.trim() || '';
 
+                // Only accept real clock times
+                const timeRegex = /^\d{1,2}:\d{2}(am|pm)$/i;
+                if (timeRegex.test(rawTime)) {
+                    timeHolder = rawTime;
+                }
 
+                const currency =
+                    row.querySelector('.calendar__currency')?.textContent.trim() || '';
 
                 let impact = 'N/A';
-
-                const allSpans = row.querySelectorAll('span');
-                for (const span of allSpans) {
+                for (const span of row.querySelectorAll('span')) {
                     const title = span.getAttribute('title');
                     if (title?.includes('Impact Expected')) {
-                        if (title.includes('High Impact Expected')) impact = 'High';
-                        else if (title.includes('Medium Impact Expected')) impact = 'Medium';
-                        else impact = 'Low';
+                        impact = title.includes('High') ? 'High'
+                            : title.includes('Medium') ? 'Medium'
+                                : 'Low';
                         break;
                     }
                 }
 
-                const currency = row.querySelector('.calendar__currency')?.textContent.trim() || '';
-
-                if (currency === 'USD' || currency === 'EUR') {
-                    if (currentTime) {
-                        timeHolder = currentTime; // update FIRST
-                    }
+                if (currency === 'USD' || currency === 'EUR' || currency === 'All') {
                     data.push({
-                        time: timeHolder, // ALWAYS correct
+                        time: timeHolder,
                         currency,
                         event: eventEl.textContent.trim(),
                         impact
                     });
                 }
             });
+
 
 
             if (data.length > 0) return data;
