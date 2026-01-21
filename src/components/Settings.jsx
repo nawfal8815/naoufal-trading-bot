@@ -1,20 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { auth } from "../../firebase/firebase";
 import {
-    updateEmail,
     updatePassword,
     reauthenticateWithCredential,
     EmailAuthProvider,
     onAuthStateChanged,
-    GithubAuthProvider,
-    reauthenticateWithPopup,
-    updateProfile,
-    sendEmailVerification,
-    verifyBeforeUpdateEmail
+    signOut
 } from "firebase/auth";
 
 import { api } from "../../src/server/frontendApi"; // Add this import
-import { saveUserSettings, getUserIG } from "../../firebase/queries.client";
 import { FaUserCircle, FaArrowLeft } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
@@ -22,6 +16,7 @@ export default function Settings() {
     const navigate = useNavigate();
 
     const [user, setUser] = useState(null);
+    const [idToken, setIdToken] = useState(null);
     const [authLoading, setAuthLoading] = useState(true);
 
     const [editingEmail, setEditingEmail] = useState(false);
@@ -41,6 +36,7 @@ export default function Settings() {
     // TELEGRAM
     const [telegramChatId, setTelegramChatId] = useState("");
     const [telegramStatus, setTelegramStatus] = useState(null);
+    const [tgLoading, setTgLoading] = useState(false);
 
     // IG
     const [igLoading, setIgLoading] = useState(false);
@@ -53,10 +49,26 @@ export default function Settings() {
         accountType: "CFD"
     });
 
+
+    const [userData, setUserData] = useState(null);
+    const [userDataLoading, setUserDataLoading] = useState(true);
+
+    const [confirmDisconnect, setConfirmDisconnect] = useState(null);
+    // { type: "ig" | "telegram" } | null
+
+    const [disconnectLoading, setDisconnectLoading] = useState(false);
+
+
+
     // AUTH LISTENER
     useEffect(() => {
-        const unsub = onAuthStateChanged(auth, (firebaseUser) => {
-            setUser(firebaseUser);
+        const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+            setUser(firebaseUser); if (firebaseUser) {
+                const token = await firebaseUser.getIdToken();
+                setIdToken(token); // now it's a string
+            } else {
+                setIdToken(null);
+            }
             setAuthLoading(false);
         });
         return () => unsub();
@@ -91,16 +103,33 @@ export default function Settings() {
         }
     }, [igStatus]);
 
-    async function reauthGithub() {
-        const provider = new GithubAuthProvider();
-        await reauthenticateWithPopup(user, provider);
-    }
+    useEffect(() => {
+        if (!user) return;
+
+        const fetchStatus = async () => {
+
+            const res = await api.get(
+                `/api/get-account-status/${user.uid}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${idToken}`
+                    }
+                }
+            );
+            setUserData(res.data);
+            setUserDataLoading(false);
+        };
+
+        fetchStatus();
+    }, [user]);
 
 
-    if (authLoading) {
+
+
+    if (authLoading || userDataLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-[#0b0f14] text-gray-400">
-                Checking authentication…
+                Loading settings...
             </div>
         );
     }
@@ -121,135 +150,107 @@ export default function Settings() {
     const providers = user.providerData.map(p => p.providerId);
 
     const isGoogleUser = providers.includes("google.com");
-    const isGithubUser = providers.includes("github.com");
     const isPasswordUser = providers.includes("password");
+    const isGithubUser = providers.includes("github.com");
+
+
+    const emailVerified = user.emailVerified || false;
 
     const authEmail = user.email;
-    console.log(authEmail);
     const authName = user.displayName;
 
-    const hasProfile = isGithubUser && authEmail !== null && authName !== null;
+    const hasProfile = isGithubUser && user.email !== null && user.displayName !== null;
 
-    const canEditEmail =
-        isPasswordUser ||
-        (isGithubUser && authEmail === null);
-
-
-    const canEditName =
-        isPasswordUser ||
-        (isGithubUser && authName === null);
+    const canEdit =
+        !isGoogleUser || !hasProfile;
 
     const canEditPassword = isPasswordUser;
 
+
     // ---------------- PROFILE SAVE ----------------
 
-    async function checkIfExists({ email, displayName }) {
-        const idToken = await user.getIdToken();
-        const response = await api.post("/api/check-user-exists", {
-            user: user.uid,
-            email,
-            displayName
-        },
-            {
-                headers: {
-                    Authorization: `Bearer ${idToken}`
-                }
-            });
-        return response;
+    function isValidEmail(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
     }
 
+
+
     async function handleSaveEmail() {
-        if (!user || !canEditEmail) return;
+        setProfileStatus(null);
+
+        if (!user || !canEdit) return;
+        if (!isValidEmail(newEmail)) {
+            setProfileStatus({ type: "error", message: "Invalid email format." });
+            return;
+        }
 
         try {
-            if (!newEmail || newEmail === user.email) {
-                setProfileStatus({ type: "error", message: "Nothing to update." });
-                return;
-            }
-
-            // 🔍 check existence
-            const { data } = await checkIfExists({ email: newEmail });
-            if (data.emailExists) {
-                setProfileStatus({ type: "error", message: "Email already exists." });
-                return;
-            }
-
-            // 🔐 REAUTHENTICATE
-            if (isPasswordUser) {
-                if (!oldPassword) {
-                    setProfileStatus({
-                        type: "error",
-                        message: "Please enter your password to change email."
-                    });
-                    return;
+            const response = await api.post(
+                "/api/update-profile",
+                {
+                    uid: user.uid,
+                    type: "email",
+                    changingData: newEmail
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${idToken}`
+                    }
                 }
-                await reauthPasswordUser(oldPassword);
-            }
+            );
 
-            if (isGithubUser) {
-                await reauthGithub();
-            }
-
-            // ✉️ VERIFY + UPDATE
-            await verifyBeforeUpdateEmail(user, newEmail);
-
-            setProfileStatus({
-                type: "success",
-                message: "Verification email sent. Confirm to complete the change."
-            });
-
-            setEditingEmail(false);
-            setNewEmail("");
-            setOldPassword("");
-
-        } catch (err) {
-            console.error(err);
-
-            if (err.code === "auth/wrong-password") {
-                setProfileStatus({ type: "error", message: "Incorrect password." });
-            } else if (err.code === "auth/popup-closed-by-user") {
-                setProfileStatus({ type: "error", message: "Reauthentication cancelled." });
+            if (response.data.success) {
+                setProfileStatus({ type: "success", message: response.data.message || "Email updated successfully." });
+                setEditingEmail(false);
+                setNewEmail("");
+                setTimeout(() => {
+                    signOut(auth);
+                    navigate("/");
+                }, 5000);
             } else {
-                setProfileStatus({
-                    type: "error",
-                    message: err.message || "Failed to update email."
-                });
+                setProfileStatus({ type: "error", message: response.data.error || "Failed to update email." });
+                return;
             }
+        } catch (err) {
+            console.error(err.message);
+            setProfileStatus({ type: "error", message: "Failed to update email." });
         }
     }
 
 
 
     async function handleSaveName() {
-        if (!user || !canEditName) return;
+        setProfileStatus(null);
+        if (!user || !canEdit) return;
 
         try {
-            if (!newName || newName === user.displayName) {
-                setProfileStatus({ type: "error", message: "Nothing to update." });
+            const response = await api.post(
+                "/api/update-profile",
+                {
+                    uid: user.uid,
+                    type: "displayName",
+                    changingData: newName
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${idToken}`
+                    }
+                }
+            );
+
+            if (response.data.success) {
+                setProfileStatus({ type: "success", message: response.data.message || "Name updated successfully." });
+                setEditingName(false);
+                setNewName("");
+            } else {
+                setProfileStatus({ type: "error", message: response.data.error || "Failed to update name." });
                 return;
             }
-
-            // 🔍 check existence
-            const { data } = await checkIfExists({ displayName: newName });
-
-            if (data.displayNameExists) {
-                setProfileStatus({ type: "error", message: "Username already exists." });
-                return;
-            }
-
-            await updateProfile(user, { displayName: newName });
-
-            setProfileStatus({ type: "success", message: "Username updated successfully." });
-            setEditingName(false);
-            setNewName("");
-
         } catch (err) {
-            console.error(err);
-            setProfileStatus({ type: "error", message: "Failed to update username." });
+            console.error(err.message);
+            setProfileStatus({ type: "error", message: "Failed to update name." });
         }
     }
-
-
 
 
     // ---------------- PASSWORD ----------------
@@ -297,14 +298,51 @@ export default function Settings() {
     // ---------------- TELEGRAM ----------------
 
     async function handleTelegramSave() {
+        setTgLoading(true);
+        setTelegramStatus(null);
         if (!telegramChatId.trim()) {
             setTelegramStatus({ type: "error", message: "Chat ID required." });
             return;
         }
+        try {
+            const response = await api.post(
+                "/api/verify-tg-chat-id",
+                {
+                    uid: user.uid,
+                    telegramChatId
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${idToken}`
+                    }
+                }
+            );
 
-        await saveUserSettings(user.uid, { telegramChatId, telegramChecked: false });
-        setTelegramStatus({ type: "success", message: "Telegram saved." });
-        setTelegramChatId("");
+            if (response.data.success) {
+                setTelegramStatus({ type: "success", message: "Telegram saved." });
+                setUserData(prev => ({
+                    ...prev,
+                    telegramChatId,
+                    telegramChecked: true
+                }));
+                setTelegramChatId("");
+            } else {
+                setTelegramStatus({
+                    type: "error",
+                    message: response.data.message || "Telegram validation failed."
+                });
+            }
+        } catch (error) {
+            setTelegramStatus({
+                type: "error",
+                message: error.response?.data?.message || "Telegram validation failed."
+            });
+        } finally {
+            setTgLoading(false);
+        }
+
+
+
     }
 
     // ---------------- IG ----------------
@@ -328,9 +366,6 @@ export default function Settings() {
         setIgLoading(true);
 
         try {
-            await saveUserSettings(user.uid, { igAccount });
-
-            const idToken = await user.getIdToken();
             const response = await api.post(
                 "/api/verify-ig-account",
                 {
@@ -345,6 +380,11 @@ export default function Settings() {
             );
 
             if (response.data.success) {
+                setUserData(prev => ({
+                    ...prev,
+                    igAccount: response.data.igAccount ?? igAccount,
+                    igChecked: true
+                }));
                 setIgStatus({ type: "success", message: "IG connected." });
                 setIgAccount({
                     apiKey: "",
@@ -369,13 +409,53 @@ export default function Settings() {
         }
     }
 
+    async function handleDisconnectConfirm() {
+        if (!confirmDisconnect || !user) return;
+
+        setDisconnectLoading(true);
+
+        try {
+            await api.delete(
+                `/api/delete-account/${confirmDisconnect.type}/${user.uid}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${idToken}`
+                    }
+                }
+            );
+
+            // Update local UI state
+            if (confirmDisconnect.type === "ig") {
+                setUserData(prev => ({
+                    ...prev,
+                    igAccount: null,
+                    igChecked: false
+                }));
+            }
+
+            if (confirmDisconnect.type === "telegram") {
+                setUserData(prev => ({
+                    ...prev,
+                    telegramChatId: null
+                }));
+            }
+
+            setConfirmDisconnect(null);
+        } catch (err) {
+            console.error("Disconnect failed:", err);
+        } finally {
+            setDisconnectLoading(false);
+        }
+    }
+
+
     // ---------------- UI ----------------
 
-    const Spinner = () => (
-        <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+    const Spinner = (type) => (
+        <div className={`w-4 h-4 border-2 ${type === "ig" ? "border-purple-400" : "border-blue-400"} border-t-transparent rounded-full animate-spin`} />
     );
     const card = "bg-[#11161d] border border-[#1f2933] rounded-xl p-5 w-full";
-    const input = "w-full p-2 rounded bg-[#0b0f14] border border-[#1f2933]";
+    const input = "w-full p-2 rounded bg-[#0b0f14] border border-[#1f2933] mb-2";
     const btn = "px-4 py-2 text-sm font-semibold rounded border border-[#1f2933]";
 
     const statusBox = (s) =>
@@ -402,7 +482,6 @@ export default function Settings() {
                     ) : (
                         <FaUserCircle className="w-16 h-16 text-gray-500" />
                     )}
-
                     <div className="flex-1 space-y-2">
 
                         {/* EMAIL */}
@@ -410,7 +489,7 @@ export default function Settings() {
                             {!editingEmail ? (
                                 <div className="flex gap-2 items-center">
                                     <p>{authEmail || "No email"}</p>
-                                    {canEditEmail && (
+                                    {canEdit && (
                                         <button
                                             className="text-xs text-blue-400"
                                             onClick={() => {
@@ -446,6 +525,14 @@ export default function Settings() {
                                     </div>
                                 </>
                             )}
+
+                            {authEmail && !emailVerified && !isGoogleUser && (
+                                <p className="text-xs text-yellow-400 mt-1">
+                                    ⚠ Email not verified
+                                </p>
+
+                            )}
+
                         </div>
 
                         {/* NAME */}
@@ -453,7 +540,7 @@ export default function Settings() {
                             {!editingName ? (
                                 <div className="flex gap-2 items-center">
                                     <p>{authName || "No username"}</p>
-                                    {canEditName && (
+                                    {canEdit && (
                                         <button
                                             className="text-xs text-blue-400"
                                             onClick={() => {
@@ -495,6 +582,39 @@ export default function Settings() {
                     </div>
                 </div>
 
+                {/* NOTES */}
+                <div className={card}>
+                    <span className="mt-1 text-[15px] text-red-500 italic">IMPORTANT! </span>
+                    <span className="block mt-1 text-[15px] text-teal-500 italic">
+                        Before submitting your id search for @naoufal_trading_bot and send a message or click /start
+                    </span>
+                    <span className="block mt-1 text-[15px] text-teal-500 italic">
+                        Request to join the telegram channel if you would like to
+                        <a
+                            href="https://t.me/+zy1JgGTQZcs2MTU0"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline text-gray-400 hover:text-gray-300 transition-colors"
+                        >
+                            {` `}https://t.me/+zy1JgGTQZcs2MTU0
+                        </a>
+                    </span>
+                    <span className="block mt-1 text-[15px] text-teal-500 italic">
+                        To get your chat ID use @userinfobot Telegram bots, once you submit you will receive a check message!
+                    </span>
+                    <span className="block mt-1 text-[15px] text-teal-500 italic">
+                        To get your IG Markets data login or create an account on
+                        <a
+                            href="https://www.ig.com/uk"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline text-gray-400 hover:text-gray-300 transition-colors"
+                        >
+                            {` `}ig.com
+                        </a>
+                    </span>
+                </div>
+
                 {/* PASSWORD */}
                 {canEditPassword && (
                     <div className={card}>
@@ -507,45 +627,135 @@ export default function Settings() {
                     </div>
                 )}
 
-                {/* TELEGRAM */}
+                {/* ---------------- TELEGRAM ---------------- */}
                 <div className={card}>
                     <h2 className="text-sm text-gray-400 mb-3">Connect Telegram</h2>
-                    <input className={input} value={telegramChatId} onChange={e => setTelegramChatId(e.target.value)} placeholder="Chat ID" />
-                    <button onClick={handleTelegramSave} className={`${btn} mt-3 text-blue-400`}>Save</button>
+
+                    {userData?.telegramChatId ? (
+                        <div className="flex flex-col gap-2">
+                            <p><strong>Chat ID:</strong> {userData.telegramChatId}</p>
+                            <button
+                                className={`${btn} mt-2 text-red-400 w-max`}
+                                onClick={() => setConfirmDisconnect({ type: "telegram" })}
+                            >
+                                Disconnect Telegram
+                            </button>
+
+                        </div>
+                    ) : (
+                        <>
+                            <input
+                                className={input}
+                                value={telegramChatId}
+                                onChange={e => setTelegramChatId(e.target.value)}
+                                placeholder="Chat ID"
+                            />
+                            <button
+                                onClick={handleTelegramSave}
+                                className={`${btn} mt-3 text-blue-400 flex items-center justify-center gap-2 ${tgLoading ? "opacity-60 cursor-not-allowed" : ""}`}
+                                disabled={tgLoading}
+                            >
+                                {tgLoading ? (
+                                    <>
+                                        <Spinner type="tg" />
+                                        Connecting...
+                                    </>
+                                ) : (
+                                    "Save"
+                                )}
+                            </button>
+                        </>
+                    )}
                     {statusBox(telegramStatus)}
                 </div>
 
-                {/* IG */}
+
+                {/* ---------------- IG ---------------- */}
                 <div className={card}>
                     <h2 className="text-sm text-gray-400 mb-3">Connect IG</h2>
-                    {Object.keys(igAccount).map(k => (
-                        <input
-                            key={k}
-                            className={input}
-                            type={k === "password" ? "password" : "text"}
-                            placeholder={k}
-                            value={igAccount[k]}
-                            onChange={e => setIgAccount({ ...igAccount, [k]: e.target.value })}
-                        />
-                    ))}
-                    <button
-                        onClick={handleIGConnect}
-                        disabled={igLoading}
-                        className={`${btn} mt-3 text-purple-400 flex items-center justify-center gap-2 ${igLoading ? "opacity-60 cursor-not-allowed" : ""
-                            }`}
-                    >
-                        {igLoading ? (
-                            <>
-                                <Spinner />
-                                Connecting...
-                            </>
-                        ) : (
-                            "Connect"
-                        )}
-                    </button>
 
+                    {userData?.igAccount && userData.igChecked ? (
+                        <div className="flex flex-col gap-2">
+                            <p><strong>Account ID:</strong> {userData.igAccount.accountID}</p>
+                            <p><strong>Username:</strong> {userData.igAccount.username}</p>
+                            <p><strong>Balance:</strong> ${userData.igAccount.balance.toFixed(2)}</p>
+                            <button
+                                className={`${btn} mt-2 text-red-400 w-max`}
+                                onClick={() => setConfirmDisconnect({ type: "ig" })}
+                            >
+                                Disconnect IG
+                            </button>
+
+                        </div>
+                    ) : (
+                        <>
+                            {Object.keys(igAccount).map(k => (
+                                <input
+                                    key={k}
+                                    className={input}
+                                    type={k === "password" ? "password" : "text"}
+                                    placeholder={k}
+                                    value={igAccount[k]}
+                                    onChange={e => setIgAccount({ ...igAccount, [k]: e.target.value })}
+                                />
+                            ))}
+                            <button
+                                onClick={handleIGConnect}
+                                disabled={igLoading}
+                                className={`${btn} mt-3 text-purple-400 flex items-center justify-center gap-2 ${igLoading ? "opacity-60 cursor-not-allowed" : ""}`}
+                            >
+                                {igLoading ? (
+                                    <>
+                                        <Spinner type="ig" />
+                                        Connecting...
+                                    </>
+                                ) : (
+                                    "Connect"
+                                )}
+                            </button>
+                        </>
+                    )}
                     {statusBox(igStatus)}
                 </div>
+
+
+                {/* CONFIRM DISCONNECT MODAL */}
+                {confirmDisconnect && (
+                    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+                        <div className="bg-[#11161d] border border-[#1f2933] rounded-xl p-6 w-full max-w-sm">
+                            <h3 className="text-lg font-semibold mb-3">
+                                Confirm Disconnect
+                            </h3>
+
+                            <p className="text-sm text-gray-400 mb-5">
+                                Are you sure you want to disconnect your{" "}
+                                <span className="text-red-400 font-semibold">
+                                    {confirmDisconnect.type === "ig" ? "IG Markets" : "Telegram"}
+                                </span>{" "}
+                                account?
+                            </p>
+
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    className={`${btn} text-gray-400`}
+                                    onClick={() => setConfirmDisconnect(null)}
+                                    disabled={disconnectLoading}
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    className={`${btn} text-red-400`}
+                                    onClick={handleDisconnectConfirm}
+                                    disabled={disconnectLoading}
+                                >
+                                    {disconnectLoading ? "Disconnecting..." : "Confirm"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
 
             </div>
         </div>

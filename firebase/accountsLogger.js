@@ -1,7 +1,6 @@
-const { getData, telegramChecked, igMarketsChecked, igMarketsundefiened, saveUserBalance } = require('./queries');
+const { getData, saveUserBalance } = require('./queries');
 const { login, getAccount, executeTrade, scheduleStopAll } = require("../src/services/igMarkets");
 const { getLotsize } = require('../src/core/riskManager');
-const { sendTelegramMessageID } = require('../src/services/telegram');
 
 async function executeTradeOnAllAccounts(entryData) {
     const snapshot = await getData("UserSettings");

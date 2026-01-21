@@ -7,6 +7,16 @@ const twelveDataKeys = [
   config.twelveData.apiKey3,
   config.twelveData.apiKey4,
   config.twelveData.apiKey5,
+  config.twelveData.apiKey6,
+  config.twelveData.apiKey7,
+  config.twelveData.apiKey8,
+  config.twelveData.apiKey9,
+  config.twelveData.apiKey10,
+  config.twelveData.apiKey11,
+  config.twelveData.apiKey12,
+  config.twelveData.apiKey13,
+  config.twelveData.apiKey14,
+  config.twelveData.apiKey15
 ].filter(Boolean);
 
 let currentKeyIndex = 0;

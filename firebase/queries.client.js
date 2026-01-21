@@ -34,19 +34,39 @@ export async function getUserInfo(uid, colName = "UserSettings") {
         const userRef = doc(db, colName, uid);
         const docSnap = await getDoc(userRef);
 
-        if (!docSnap.exists()) return { email: "", displayName: "" };
+        if (!docSnap.exists()) return { email: null, displayName: null, emailVerified: null };
 
         const data = docSnap.data();
         return {
-            email: data.email || "",
-            displayName: data.displayName || ""
+            email: data.email || null,
+            displayName: data.displayName || null,
+            emailVerified: data.emailVerified || null
         };
     } catch (err) {
         console.error("Failed to fetch user info:", err);
-        return { email: "", displayName: "" };
+        return { email: null, displayName: null, emailVerified: null };
     }
 }
 
+export async function checkIfExists(colName = "UserSettings", changingData, type) {
+
+    try {
+        const q = query(
+        collection(db, colName));
+        const docSnap = await getDocs(q);
+
+        if (docSnap.empty) return false;
+        for (const doc of docSnap.docs) {
+            const data = doc.data();
+            if (type === "email" && data.email === changingData) return true;
+            if (type === "displayName" && data.displayName === changingData) return true;
+        }
+        return false;
+    } catch (err) {
+        console.error("Failed to fetch user info:", err);
+        return null;
+    }
+}
 
 export async function saveUserSettings(uid, newSettings) {
     if (!uid) throw new Error("No user ID provided");

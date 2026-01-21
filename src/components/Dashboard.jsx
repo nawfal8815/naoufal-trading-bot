@@ -268,13 +268,21 @@ export default function Dashboard() {
     const signal = dailyInfo?.bias
         ? { potential: dailyInfo.bias }
         : null;
+    const biasTime = dailyInfo?.createdAt?.toDate()?.toLocaleString(undefined, {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+    }) ?? null;
 
     const percentage = dailyInfo?.tradeQuality ?? null;
     const tradeGrade =
         percentage >= 90 ? "S" :
             percentage >= 80 ? "A+" :
                 percentage >= 70 ? "A" :
-                    percentage >= 60 ? "B" : 
+                    percentage >= 60 ? "B" :
                         percentage >= 50 ? "C" : "D";
 
     const fvg = dailyInfo?.fvg ?? null;
@@ -417,6 +425,10 @@ export default function Dashboard() {
                                 <p className="text-xs text-gray-500 tracking-wide mt-5">
                                     Daily timeframe direction
                                 </p>
+                                {biasTime &&
+                                    <p className="text-xs text-gray-500 tracking-wide mt-5">
+                                        Set at: {biasTime}
+                                    </p>}
                             </div>
 
                         ) : (
@@ -504,7 +516,7 @@ export default function Dashboard() {
                             </p>
                         )}
 
-                        {newsEvents.length !== 0 && (
+                        {newsEvents.length !== 0 && !isWeekend && (
                             <div className="mt-4 space-y-3 text-sm">
                                 {adjustedEvents?.map((n, i) => (
                                     <div

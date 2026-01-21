@@ -38,7 +38,17 @@ module.exports = {
         apiKey2: process.env.TWELVE_DATA_KEY_SECOND,
         apiKey3: process.env.TWELVE_DATA_KEY_THIRD,
         apiKey4: process.env.TWELVE_DATA_KEY_FOURTH,
-        apiKey5: process.env.TWELVE_DATA_KEY_FIFTH
+        apiKey5: process.env.TWELVE_DATA_KEY_FIFTH,
+        apiKey6: process.env.TWELVE_DATA_KEY_SIXTH,
+        apiKey7: process.env.TWELVE_DATA_KEY_SEVENTH,
+        apiKey8: process.env.TWELVE_DATA_KEY_EIGHTH,
+        apiKey9: process.env.TWELVE_DATA_KEY_NINTH,
+        apiKey10: process.env.TWELVE_DATA_KEY_TENTH,
+        apiKey11: process.env.TWELVE_DATA_KEY_ELEVENTH,
+        apiKey12: process.env.TWELVE_DATA_KEY_TWELFTH,
+        apiKey13: process.env.TWELVE_DATA_KEY_THIRTEENTH,
+        apiKey14: process.env.TWELVE_DATA_KEY_FOURTEENTH,
+        apiKey15: process.env.TWELVE_DATA_KEY_FIFTEENTH
     },
 
     oanda: {

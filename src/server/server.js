@@ -5,11 +5,13 @@ const path = require("path");
 const config = require('../../config/config');
 
 const { login, getAccount } = require("../services/igMarkets");
-const { igMarketsChecked, igMarketsundefiened, saveUserBalance } = require("../../firebase/queries");
+const { igMarketsChecked, igMarketsundefiened, saveUserBalance, telegramChecked } = require("../../firebase/queries");
 const { admin } = require('../../firebase/firebaseAdmin');
+const { sendTelegramMessageID } = require('../services/telegram');
 
 const app = express();
 const PORT = config.port || 3000;
+const db = admin.firestore();
 
 // ✅ Absolute path to dist folder
 const distPath = path.join(__dirname, "..", "..", "dist");
@@ -127,6 +129,24 @@ app.post("/api/data/candles", botAuthMiddleware, (req, res) => {
   res.status(200).json({ ok: true });
 });
 
+app.post("/api/verify-tg-chat-id", firebaseAuthMiddleware, async (req, res) => {
+  const { uid, telegramChatId } = req.body;
+  if (!uid || !telegramChatId) {
+    return res.status(400).json({ success: false, message: "Missing userId or telegramChatId." });
+  }
+  try {
+    await sendTelegramMessageID("✅ Telegram chat ID verified successfully.", { parse_mode: "Markdown" }, telegramChatId);
+    await db.collection("UserSettings").doc(uid).update({
+      telegramChatId: telegramChatId
+    });
+    await telegramChecked(uid);
+    return res.status(200).json({ success: true, message: "Telegram chat ID verified successfully." });
+  } catch (error) {
+    console.error("Telegram chat ID verification failed", error);
+    return res.status(500).json({ success: false, message: "Telegram chat ID verification failed.", error: error.message });
+  }
+});
+
 app.post("/api/verify-ig-account", firebaseAuthMiddleware, async (req, res) => {
   const { uid, igAccount } = req.body;
 
@@ -140,6 +160,9 @@ app.post("/api/verify-ig-account", firebaseAuthMiddleware, async (req, res) => {
 
     // If successful, update Firestore
     await igMarketsChecked(uid);
+    await db.collection("UserSettings").doc(uid).update({
+      igAccount: igAccount
+    });
     await saveUserBalance(uid, account.balance.balance);
 
     return res.status(200).json({ success: true, message: "IG account verified successfully." });
@@ -151,58 +174,162 @@ app.post("/api/verify-ig-account", firebaseAuthMiddleware, async (req, res) => {
   }
 });
 
-app.post("/api/check-user-exists", firebaseAuthMiddleware, async (req, res) => {
-  const { user: uid, email, displayName } = req.body;
-
+app.get("/api/get-account-status/:uid", firebaseAuthMiddleware, async (req, res) => {
+  const { uid } = req.params;
   if (!uid) {
-    return res.status(400).json({ error: "Missing user UID." });
+    return res.status(400).json({ error: "Missing userId." });
+  }
+  try {
+    const userDoc = await db.collection("UserSettings").doc(uid).get();
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: "User not found." });
+    }
+    const userData = userDoc.data();
+    return res.status(200).json({
+      igAccount: userData.igAccount || null,
+      igChecked: userData.igChecked || false,
+      telegramChatId: userData.telegramChatId || null,
+      telegramChecked: userData.telegramChecked || false
+    });
+  } catch (err) {
+    console.error("Error fetching account data:", err);
+    return res.status(500).json({ error: "Internal server error." });
   }
 
-  // 🔐 Ensure users can only check for themselves
+});
+
+app.post("/api/update-profile", firebaseAuthMiddleware, async (req, res) => {
+  const { uid, type, changingData } = req.body;
+
+  if (!uid || !type || !changingData) {
+    return res.status(400).json({ error: "Missing required fields." });
+  }
+
+  if (req.user.uid !== uid) {
+    return res.status(403).json({ error: "Forbidden." });
+  }
+
+  if (!["email", "displayName"].includes(type)) {
+    return res.status(400).json({ error: "Invalid update type." });
+  }
+  // ---------------- EMAIL ----------------
+  if (type === "email") {
+    try {
+      // 1️⃣ Check existence properly
+      try {
+        const existingUser = await admin.auth().getUserByEmail(changingData);
+
+        // Email exists AND belongs to someone else
+        if (existingUser.uid !== uid) {
+          return res.status(400).json({
+            success: false,
+            error: "Email already in use."
+          });
+        }
+        // If same user → OK to proceed
+      } catch (err) {
+        if (err.code !== "auth/user-not-found") {
+          throw err; // real error
+        }
+        // user-not-found → email is free
+      }
+
+      // 2️⃣ Update
+      await admin.auth().updateUser(uid, {
+        email: changingData,
+        emailVerified: false
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Email updated. Please verify your new email."
+      });
+
+    } catch (err) {
+      console.error("Email update error:", err);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to update email."
+      });
+    }
+  }
+
+  // ---------------- DISPLAY NAME ----------------
+  if (type === "displayName") {
+    try {
+      await admin.auth().updateUser(uid, {
+        displayName: changingData
+      });
+    } catch (err) {
+      console.error("Display name update error:", err);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to update username."
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Username updated."
+    });
+  }
+});
+
+
+app.delete("/api/delete-account/:type/:uid", firebaseAuthMiddleware, async (req, res) => {
+  const { uid, type } = req.params;
+
+  if (!uid || !type) {
+    return res.status(400).json({ error: "Missing parameters." });
+  }
+
+  // 🔐 Ensure users can only modify their own data
   if (req.user.uid !== uid) {
     return res.status(403).json({ error: "Forbidden." });
   }
 
   try {
-    const db = admin.firestore();
+    const userRef = db.collection("UserSettings").doc(uid);
+    const userDoc = await userRef.get();
 
-    let emailExists = false;
-    let displayNameExists = false;
-
-    // 🔍 Check email
-    if (email) {
-      const emailSnap = await db
-        .collection("users")
-        .where("email", "==", email)
-        .limit(1)
-        .get();
-
-      emailExists = !emailSnap.empty &&
-        emailSnap.docs[0].id !== uid;
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: "User not found." });
     }
 
-    // 🔍 Check display name
-    if (displayName) {
-      const nameSnap = await db
-        .collection("users")
-        .where("displayName", "==", displayName)
-        .limit(1)
-        .get();
+    // ---------------- IG MARKETS ----------------
+    if (type === "ig") {
+      await userRef.update({
+        igAccount: admin.firestore.FieldValue.delete(),
+        igChecked: false
+      });
 
-      displayNameExists = !nameSnap.empty &&
-        nameSnap.docs[0].id !== uid;
+      return res.status(200).json({
+        success: true,
+        message: "IG account disconnected."
+      });
     }
 
-    return res.status(200).json({
-      emailExists,
-      displayNameExists
-    });
+    // ---------------- TELEGRAM ----------------
+    if (type === "telegram") {
+      await userRef.update({
+        telegramChatId: admin.firestore.FieldValue.delete(),
+        telegramChecked: false
+      });
 
-  } catch (error) {
-    console.error("check-user-exists error:", error);
+      return res.status(200).json({
+        success: true,
+        message: "Telegram disconnected."
+      });
+    }
+
+    return res.status(400).json({ error: "Invalid account type." });
+
+  } catch (err) {
+    console.error("delete-account error:", err);
     return res.status(500).json({ error: "Internal server error." });
   }
 });
+
 
 
 app.get("/api/data", firebaseAuthMiddleware, (req, res) => {
