@@ -7,10 +7,12 @@ import { onAuthStateChanged } from "firebase/auth"; // Add this import
 import { getLatest, getUserIG, getLogs } from "../../firebase/queries.client";
 import UserMenu from "./UserMenu";
 import config from "../../config/front-end/config";
+import { useNavigate } from "react-router-dom";
 
 
 
 export default function Dashboard() {
+    const navigate = useNavigate();
     const [user, setUser] = useState(null); // Declare user state
     const [authLoading, setAuthLoading] = useState(true); // Declare authLoading state
     const [data, setData] = useState([]);
@@ -402,7 +404,12 @@ export default function Dashboard() {
                                         </div>
                                     </div>
                                 </>
-                                : <p className="text-xs text-gray-400 mb-1">No IG Markets data...</p>}
+                                : <>
+                                    <p className="text-xs text-gray-400 mb-1">No IG Markets data...</p>
+                                    <button onClick={() => navigate("/settings")} className="px-4 py-2 text-sm font-semibold rounded border border-[#1f2933]  mt-3 text-teal-400">
+                                        Connect IG Account
+                                    </button>
+                                </>}
                         </div>
                     </div>
 
@@ -427,7 +434,7 @@ export default function Dashboard() {
                                 </p>
                                 {biasTime &&
                                     <p className="text-xs text-gray-500 tracking-wide mt-5">
-                                        Set at: {biasTime}
+                                        Valid for: {biasTime}
                                     </p>}
                             </div>
 
@@ -506,7 +513,7 @@ export default function Dashboard() {
                             </span>
                         </h2>
 
-                        {news ? (
+                        {news && !isWeekend ? (
                             <p className={`font-semibold ${newsDecisionStyle(news)}`}>
                                 {news}
                             </p>
@@ -698,6 +705,8 @@ export default function Dashboard() {
                             startTime: fvg.createdAt,
                             topPrice: fvg.gapHigh,
                             bottomPrice: fvg.gapLow,
+                            middlePrice: fvg.gapMid || null,
+                            fullVirgin: fvg.fullVirgin,
                         }] : []}
                         bias={signal?.potential?.toLowerCase() === "buy" ? "bullish" :
                             signal?.potential?.toLowerCase() === "sell" ? "bearish" :

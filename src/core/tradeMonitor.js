@@ -2,7 +2,7 @@ const { getLivePrice } = require('../api/dataFeed');
 const config = require('../../config/config')
 const chalk = require('chalk').default;
 
-function monitorTrade(tpPrice, slPrice, bias, processId) {
+async function monitorTrade(tpPrice, slPrice, bias, processId) {
     const interval = 15 * 60 * 1000; // 15 minutes in ms
     console.log(`[${chalk.green(processId)}]: ⏱ Starting trade monitor. TP: ${tpPrice}, SL: ${slPrice}`);
     const monitorId = setInterval(async () => {
@@ -35,7 +35,7 @@ function monitorTrade(tpPrice, slPrice, bias, processId) {
                     });
                     clearInterval(monitorId);
                 } else {
-                    console.log(`[${chalk.backgroundColorNames.underline(processId)}]: ℹ️ Trade still open. Waiting for next check...`);
+                    console.log(`[${chalk.blue.underline(processId)}]: ℹ️ Trade still open. Waiting for next check...`);
                 }
             } else {
                 if (currentPrice <= tpPrice) {

@@ -107,7 +107,7 @@ export default function MarketCanvas({ candles, fvgs, bias, dailyTargetPrice }) 
         // Ensure new min is less than new max, and prevent excessive zoom
         const minAllowedPriceRange = 0.0001; // Example: Minimum price difference to prevent infinite zoom
         const maxAllowedPriceRange = (maxOverallPrice - minOverallPrice) * 2; // Use overall price range
-        
+
         const currentRange = newMaxPrice - newMinPrice;
 
         if (newMinPrice < newMaxPrice && currentRange >= minAllowedPriceRange && currentRange <= maxAllowedPriceRange) {
@@ -265,6 +265,42 @@ export default function MarketCanvas({ candles, fvgs, bias, dailyTargetPrice }) 
 
                 ctx.fillStyle = fillColor;
                 ctx.fillRect(startX, rectY, fvgWidth, fvgHeight);
+                if (fvg.fullVirgin === "50%") {
+                    // Always compute midpoint safely
+                    const midPrice =
+                        fvg.middlePrice ??
+                        (fvg.topPrice + fvg.bottomPrice) / 2;
+
+                    const midY = priceToY(midPrice);
+
+                    // Guard: must be visible
+                    if (
+                        startX < -100 ||
+                        startX > rect.width + 100 ||
+                        midY < padding ||
+                        midY > rect.height - padding
+                    ) {
+                        return;
+                    }
+
+                    ctx.save(); // 🧠 isolate canvas state
+
+                    ctx.shadowBlur = 0;          // 🔴 IMPORTANT
+                    ctx.shadowColor = "transparent";
+
+                    ctx.strokeStyle = "rgba(255,255,255,0.9)";
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([6, 4]);
+
+                    ctx.beginPath();
+                    ctx.moveTo(startX, midY);
+                    ctx.lineTo(startX + fvgWidth, midY);
+                    ctx.stroke();
+
+                    ctx.restore(); // 🧠 restore state
+                }
+
+
 
                 // Add "FVG" label
                 ctx.fillStyle = "white"; // White color for the text
@@ -340,7 +376,7 @@ export default function MarketCanvas({ candles, fvgs, bias, dailyTargetPrice }) 
                 break;
             }
         }
-        
+
         let firstTickPrice = Math.floor(currentMinPrice / niceTickStep) * niceTickStep;
 
         for (let price = firstTickPrice; price <= currentMaxPrice; price += niceTickStep) {
@@ -564,7 +600,7 @@ export default function MarketCanvas({ candles, fvgs, bias, dailyTargetPrice }) 
             // Ensure divisor is not zero to prevent NaN
             const divisor = (candleWidth + gap);
             const currentCandleIndex = divisor !== 0 ? Math.floor((mouseCanvasX - padding - offsetX) / divisor) : 0;
-            
+
             // Determine the change for candleWidth and gap
             if (dx > 0) { // Dragging right zooms out (reduce width)
                 newCandleWidth = candleWidth - changePerPixel * Math.abs(dx);

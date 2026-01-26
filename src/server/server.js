@@ -5,9 +5,9 @@ const path = require("path");
 const config = require('../../config/config');
 
 const { login, getAccount } = require("../services/igMarkets");
-const { igMarketsChecked, igMarketsundefiened, saveUserBalance, telegramChecked } = require("../../firebase/queries");
 const { admin } = require('../../firebase/firebaseAdmin');
-const { sendTelegramMessageID, telegramUsersSender } = require('../services/telegram');
+const { sendTelegramMessageID } = require('../services/telegram');
+const { isWeekend } = require('../utils/date');
 
 const app = express();
 const PORT = config.port || 3000;
@@ -81,11 +81,13 @@ app.post("/api/data", (req, res) => {
 });
 
 app.post("/api/data/candles", botAuthMiddleware, (req, res) => {
-  const incoming = req.body?.candles;
+  let incoming = req.body?.candles;
 
   if (!Array.isArray(incoming) || incoming.length === 0) {
     return res.status(400).json({ error: "candles must be a non-empty array" });
   }
+
+  incoming = incoming.filter(c => !isWeekend(c.datetime));
 
   const serverHasCandles = candles.length > 0;
   const incomingIsSingle = incoming.length === 1;
@@ -135,12 +137,22 @@ app.post("/api/verify-tg-chat-id", firebaseAuthMiddleware, async (req, res) => {
     return res.status(400).json({ success: false, message: "Missing userId or telegramChatId." });
   }
   try {
-    await sendTelegramMessageID("✅ Telegram chat ID verified successfully.", { parse_mode: "Markdown" }, telegramChatId);
-    await db.collection("UserSettings").doc(uid).update({
-      telegramChatId: telegramChatId
-    });
-    await telegramChecked(uid);
-    return res.status(200).json({ success: true, message: "Telegram chat ID verified successfully." });
+    // check chat ID existance before adding to db
+    //TODO
+
+    const response = await sendTelegramMessageID("✅ Telegram chat ID verified successfully.", { parse_mode: "Markdown" }, telegramChatId);
+    if (response.chat.id) {
+      const ref = db.collection("UserSettings").doc(uid);
+      const snap = await ref.get();
+
+      if (!snap.exists) {
+        await ref.set({ telegramChatId });
+      } else {
+        await ref.update({ telegramChatId });
+      }
+      return res.status(200).json({ success: true, message: "Telegram chat ID verified successfully." });
+    }
+    return res.status(500).json({ success: false, message: "Telegram chat ID verification failed." });
   } catch (error) {
     console.error("Telegram chat ID verification failed", error);
     return res.status(500).json({ success: false, message: "Telegram chat ID verification failed.", error: error.message });
@@ -155,47 +167,79 @@ app.post("/api/verify-ig-account", firebaseAuthMiddleware, async (req, res) => {
   }
 
   try {
+    // check api key existance before adding to db
+    //TODO
+
     const authHeaders = await login(igAccount.apiKey, igAccount.username, igAccount.password);
     const account = await getAccount(igAccount.accountID, authHeaders);
 
-    // If successful, update Firestore
-    await igMarketsChecked(uid);
-    await db.collection("UserSettings").doc(uid).update({
-      igAccount: igAccount
-    });
-    await saveUserBalance(uid, account.balance.balance);
 
-    return res.status(200).json({ success: true, message: "IG account verified successfully." });
+    const ref = db.collection("UserSettings").doc(uid);
+    const snap = await ref.get();
+
+    if (!snap.exists) {
+      await ref.set(
+        {
+          igAccount: {
+            ...igAccount,
+            balance: account.balance.balance
+          }
+        },
+        { merge: true }
+      );
+    } else {
+      await ref.update(
+        {
+          igAccount: {
+            ...igAccount,
+            balance: account.balance.balance
+          }
+        },
+        { merge: true }
+      );
+    }
+
+    return res.status(200).json({
+      success: true, message: "IG account verified successfully.", igAccount: {
+        ...igAccount,
+        balance: account.balance.balance
+      }
+    });
   } catch (error) {
     console.error("IG account verification failed");
     // If verification fails, update Firestore as undefined
-    await igMarketsundefiened(uid);
     return res.status(500).json({ success: false, message: "IG account verification failed.", error: error.message });
   }
 });
 
 app.get("/api/get-account-status/:uid", firebaseAuthMiddleware, async (req, res) => {
   const { uid } = req.params;
+
   if (!uid) {
-    return res.status(400).json({ error: "Missing userId." });
+    return res.status(400).json({ error: "Missing uid." });
   }
+
   try {
     const userDoc = await db.collection("UserSettings").doc(uid).get();
     if (!userDoc.exists) {
       return res.status(404).json({ error: "User not found." });
     }
-    const userData = userDoc.data();
+    const data = userDoc.data();
+    const igAccount = data?.igAccount || null;
+    const telegramChatId = data?.telegramChatId || null;
+
     return res.status(200).json({
-      igAccount: userData.igAccount || null,
-      igChecked: userData.igChecked || false,
-      telegramChatId: userData.telegramChatId || null,
-      telegramChecked: userData.telegramChecked || false
+      igAccount,
+      telegramChatId
     });
   } catch (err) {
+    if (err.code === "auth/user-not-found") {
+      return res.status(404).json({ error: "User not found." });
+    }
+
     console.error("Error fetching account data:", err);
     return res.status(500).json({ error: "Internal server error." });
   }
-
 });
 
 app.post("/api/update-profile", firebaseAuthMiddleware, async (req, res) => {
@@ -300,7 +344,6 @@ app.delete("/api/delete-account/:type/:uid", firebaseAuthMiddleware, async (req,
     if (type === "ig") {
       await userRef.update({
         igAccount: admin.firestore.FieldValue.delete(),
-        igChecked: false
       });
 
       return res.status(200).json({
@@ -313,7 +356,6 @@ app.delete("/api/delete-account/:type/:uid", firebaseAuthMiddleware, async (req,
     if (type === "telegram") {
       await userRef.update({
         telegramChatId: admin.firestore.FieldValue.delete(),
-        telegramChecked: false
       });
 
       return res.status(200).json({
@@ -330,22 +372,6 @@ app.delete("/api/delete-account/:type/:uid", firebaseAuthMiddleware, async (req,
   }
 });
 
-app.post("/api/data/telegram", botAuthMiddleware, async (req, res) => {
-  const msg = req.body.msg;
-
-  try {
-    await telegramUsersSender(msg, { parse_mode: "Markdown" });
-  } catch (err) {
-    console.error("Error sending telegram message:", err);
-    return res.status(500).json({ error: "Failed to send telegram message." });
-  }
-
-  return res.status(200).json({
-    success: true,
-    message: "Message sent."
-  });
-});
-
 app.get("/api/data", firebaseAuthMiddleware, (req, res) => {
   res.json(dataStore);
 });
@@ -360,6 +386,8 @@ app.get(/.*/, (req, res) => {
   res.sendFile(path.join(distPath, "index.html"));
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Backend listening on port ${PORT}`);
 });
+
+module.exports = { app, server };

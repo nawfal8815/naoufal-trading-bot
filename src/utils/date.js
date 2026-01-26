@@ -80,5 +80,14 @@ async function checkIfWeekend () {
 
     return day === 0 || day === 6;
 }
-module.exports = { is15MinBoundary, timeToMinutes, getNextAsiaSessionDate, setTimeZone, checkIfWeekend };
+
+const isWeekend = (datetime) => {
+  // Convert "2026-01-25 23:45:00" → ISO
+  const date = new Date(datetime.replace(" ", "T") + "Z");
+  const day = date.getUTCDay(); // 0 = Sunday, 6 = Saturday
+  return day === 0 || day === 6;
+};
+
+
+module.exports = { is15MinBoundary, timeToMinutes, getNextAsiaSessionDate, setTimeZone, checkIfWeekend, isWeekend };
 

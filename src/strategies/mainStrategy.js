@@ -14,6 +14,7 @@ const { setTimeZone, checkIfWeekend } = require("../utils/date");
 const { initCollections } = require('../../firebase/initCollections');
 const { saveLog, saveDailyInfo, saveNews, savePosition } = require('../../firebase/queries');
 const { updateCandlesData, updatePriceData } = require('../utils/candlesUpdater');
+const { telegramUsersSender } = require('../services/telegram');
 const chalk = require('chalk').default;
 
 let strategyRunning = false; // prevent overlapping runs
@@ -89,15 +90,10 @@ async function runStrategy() {
         }
         await saveNews(newsDB);
         if (newsRules.skipDay) {
-            // telegramUsersSender(
-            //     `⚠️ *Trading Skipped Today*
-            //     High impact news events detected for ${config.symbol}. No trades will be taken today.
-            // `, { parse_mode: "Markdown" });
-            await postData({
-                type: "telegram",
-                msg: `⚠️ *Trading Skipped Today*
-                High impact news events detected for ${config.symbol}. No trades will be taken today.`
-            });
+            telegramUsersSender(
+                `⚠️ *Trading Skipped Today*
+                High impact news events detected for ${config.symbol}. No trades will be taken today.
+            `, { parse_mode: "Markdown" });
             tradesToday = 0;
             console.log("Trading skipped for today due to high-impact news events.");
             await saveLog("Trading skipped for today due to high-impact news events.");
@@ -118,16 +114,11 @@ async function runStrategy() {
             return restartStrategy(30000, processId);
         }
 
-        // telegramUsersSender(
-        //     `📈 *New Signal Detected! ${config.symbol}*
-        //     Potential: ${signal.potential}
-        // `, { parse_mode: "Markdown" });
-        await postData({
-            type: "telegram",
-            msg: `📈 *New Signal Detected! ${config.symbol}*
+        telegramUsersSender(
+            `📈 *New Signal Detected! ${config.symbol}*
             Potential: ${signal.potential}
-        `
-        });
+        `, { parse_mode: "Markdown" });
+
         console.log("Final Signal:", signal.potential);
         await saveLog("Final Signal: " + signal.potential);
 
@@ -143,28 +134,17 @@ async function runStrategy() {
 
         if (fvg.fullVirgin) config.tradeQuality += 10;
 
-
-
-        // telegramUsersSender(
-        //     `📊 *Closest Virgin FVG*
-        //     Type: ${fvg.type}
-        //     Created At: ${fvg.createdAt}
-        //     Gap Low: ${fvg.gapLow}
-        //    Gap High: ${fvg.gapHigh}
-        //     Virgin: ${fvg.fullVirgin ? "Full" : "50%"}
-        //     `,
-        //     { parse_mode: "Markdown" }
-        // );
-        await postData({
-            type: "telegram",
-            msg: `📊 *Closest Virgin FVG*
+        telegramUsersSender(
+            `📊 *Closest Virgin FVG*
             Type: ${fvg.type}
             Created At: ${fvg.createdAt}
             Gap Low: ${fvg.gapLow}
            Gap High: ${fvg.gapHigh}
             Virgin: ${fvg.fullVirgin ? "Full" : "50%"}
-            `
-        });
+            `,
+            { parse_mode: "Markdown" }
+        );
+
         console.log("Closest Virgin FVG for signal:", fvg);
         await saveLog(`📊 *Closest Virgin FVG*
             Type: ${fvg.type}
@@ -210,16 +190,11 @@ async function runStrategy() {
 
         if (result.status === "confirmed") {
             if (!confirmationTimeChecker(newsRules)) {
-                // telegramUsersSender(
-                //     `⛔ *Trade Cancelled! ${config.symbol}*
-                //     Trade cancelled due to high-impact news events.
-                //     `, { parse_mode: "Markdown" });
-                await postData({
-                    type: "telegram",
-                    msg: `⛔ *Trade Cancelled! ${config.symbol}*
+                telegramUsersSender(
+                    `⛔ *Trade Cancelled! ${config.symbol}*
                     Trade cancelled due to high-impact news events.
-                    `
-                });
+                    `, { parse_mode: "Markdown" });
+
                 console.log("Trade cancelled due to news impact.");
                 await saveLog("Trade cancelled due to news impact.");
                 return restartStrategy(0, processId);
@@ -236,23 +211,13 @@ async function runStrategy() {
                 await saveLog("Placing trade with entry data: Entry price " + displayedEntryData.entryPrice + ", Stop lose " + displayedEntryData.sl + ", Take profit " + displayedEntryData.tp);
                 console.log("Trade placed with succes.");
                 await saveLog("Trade placed with succes.");
-                // telegramUsersSender(
-                //     `🚀 *Trade Confirmed! ${config.symbol}*
-                //     Bias: ${signal.potential}
-                //     Entry Price: ${displayedEntryData.entryPrice}
-                //     Stop Loss: ${displayedEntryData.sl}
-                //     Take Profit: ${displayedEntryData.tp}
-                //     `, { parse_mode: "Markdown" });
-
-                await postData({
-                    type: "telegram",
-                    msg: `🚀 *Trade Confirmed! ${config.symbol}*
+                telegramUsersSender(
+                    `🚀 *Trade Confirmed! ${config.symbol}*
                     Bias: ${signal.potential}
                     Entry Price: ${displayedEntryData.entryPrice}
                     Stop Loss: ${displayedEntryData.sl}
                     Take Profit: ${displayedEntryData.tp}
-                    `
-                });
+                    `, { parse_mode: "Markdown" });
 
                 tradesToday++;
                 const positionDB = {
@@ -264,7 +229,7 @@ async function runStrategy() {
                 }
                 await savePosition(positionDB);
 
-                monitorTrade(displayedEntryData.tp, displayedEntryData.sl, signal.potential, processId);
+                await monitorTrade(displayedEntryData.tp, displayedEntryData.sl, signal.potential, processId);
                 if (tradesToday === config.risk.maxTreadesPerDay) {
                     tradesToday = 0;
                     console.log("Max trades amount for today has been reached, restarting...");

@@ -108,39 +108,47 @@ export default function Settings() {
 
         const fetchStatus = async () => {
 
-            const res = await api.get(
-                `/api/get-account-status/${user.uid}`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${idToken}`
+            try {
+                const res = await api.get(
+                    `/api/get-account-status/${user.uid}`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${idToken}`
+                        }
                     }
+                );
+                if (res.status === 200) {
+                    setUserData(res.data);
+                } else {
+                    console.error("Failed to fetch user data");
                 }
-            );
-            setUserData(res.data);
-            setUserDataLoading(false);
+                setUserDataLoading(false);
+            } catch (err) {
+                console.error("Error fetching user data:", err);
+                setUserDataLoading(false);
+            }
+
         };
 
         fetchStatus();
     }, [user]);
 
-
-
-
-    if (authLoading || userDataLoading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-[#0b0f14] text-gray-400">
-                Loading settings...
-            </div>
-        );
-    }
-
-    if (!user) {
+    if (!user && !authLoading) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-[#0b0f14] text-gray-400">
                 <p className="mb-4">You must be logged in to access settings.</p>
                 <button onClick={() => navigate("/")} className="px-4 py-2 rounded bg-blue-500 text-white">
                     Go to Login
                 </button>
+            </div>
+        );
+    }
+
+
+    if (authLoading || userDataLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#0b0f14] text-gray-400">
+                Loading settings...
             </div>
         );
     }
@@ -322,8 +330,7 @@ export default function Settings() {
                 setTelegramStatus({ type: "success", message: "Telegram saved." });
                 setUserData(prev => ({
                     ...prev,
-                    telegramChatId,
-                    telegramChecked: true
+                    telegramChatId
                 }));
                 setTelegramChatId("");
             } else {
@@ -382,8 +389,7 @@ export default function Settings() {
             if (response.data.success) {
                 setUserData(prev => ({
                     ...prev,
-                    igAccount: response.data.igAccount ?? igAccount,
-                    igChecked: true
+                    igAccount: response.data.igAccount ?? igAccount
                 }));
                 setIgStatus({ type: "success", message: "IG connected." });
                 setIgAccount({
@@ -674,11 +680,18 @@ export default function Settings() {
                 <div className={card}>
                     <h2 className="text-sm text-gray-400 mb-3">Connect IG</h2>
 
-                    {userData?.igAccount && userData.igChecked ? (
+                    {userData?.igAccount ? (
                         <div className="flex flex-col gap-2">
-                            <p><strong>Account ID:</strong> {userData.igAccount.accountID}</p>
-                            <p><strong>Username:</strong> {userData.igAccount.username}</p>
-                            <p><strong>Balance:</strong> ${userData.igAccount.balance.toFixed(2)}</p>
+                            <p><strong>Account ID:</strong> {userData.igAccount?.accountID}</p>
+                            <p><strong>Username:</strong> {userData.igAccount?.username}</p>
+                            {typeof userData.igAccount?.balance === "number" ? (
+                                <p>
+                                    <strong>Balance:</strong> ${userData.igAccount.balance.toFixed(2)}
+                                </p>
+                            ) : (
+                                <p className="text-gray-400 text-sm">Balance unavailable</p>
+                            )}
+
                             <button
                                 className={`${btn} mt-2 text-red-400 w-max`}
                                 onClick={() => setConfirmDisconnect({ type: "ig" })}

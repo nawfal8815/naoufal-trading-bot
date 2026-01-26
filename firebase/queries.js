@@ -82,6 +82,22 @@ async function getData(col) {
     }
 }
 
+async function listAllUsers() {
+    const users = [];
+    let nextPageToken;
+    try {
+        do {
+            const result = await admin.auth().listUsers(1000, nextPageToken);
+            users.push(...result.users);
+            nextPageToken = result.pageToken;
+        } while (result.pageToken);
+    } catch (err) {
+        console.error("Error listing users:", err);
+    }
+    return users;
+}
+
+
 async function getUserSettingsById(uid) {
     try {
         const userRef = db.collection("UserSettings").doc(uid);
@@ -152,4 +168,4 @@ async function saveUserBalance(uid, balance) {
 }
 
 
-module.exports = { saveLog, saveDailyInfo, saveLivePrice, saveNews, savePosition, getData, getUserSettingsById, telegramChecked, igMarketsChecked, igMarketsundefiened, saveUserBalance };
+module.exports = { saveLog, saveDailyInfo, saveLivePrice, saveNews, savePosition, getData, getUserSettingsById, telegramChecked, igMarketsChecked, igMarketsundefiened, saveUserBalance, listAllUsers };

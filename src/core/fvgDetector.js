@@ -107,6 +107,9 @@ function isVirginFVG(fvg, candles, signal) {
         const fvgTs = toUtcTimestamp(fvg.createdAt);
 
         if (candleTs <= fvgTs) continue;
+        if (!sameUtcDay(candleTs, fvgTs)) continue;
+        if (candleTs < getNextAsiaSessionDate()) continue;
+
 
 
         // ---- BULLISH FVG ----
@@ -128,8 +131,9 @@ function isVirginFVG(fvg, candles, signal) {
 
 
             // touched but still valid (50%)
-            if (c.low <= fvg.gapHigh && c.low >= fvg.gapMid) {
+            if (c.low < fvg.gapHigh && c.low >= fvg.gapMid) {
                 touched = true;
+                console.log("touched bullish FVG at", fvg.createdAt);
             }
         }
 
@@ -150,8 +154,9 @@ function isVirginFVG(fvg, candles, signal) {
 
 
             // touched but still valid (50%)
-            if (c.high >= fvg.gapLow && c.high <= fvg.gapMid) {
+            if (c.high > fvg.gapLow && c.high <= fvg.gapMid) {
                 touched = true;
+                console.log("touched bearish FVG at", fvg.createdAt);
             }
         }
     }
