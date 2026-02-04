@@ -6,11 +6,11 @@ const config = require('../../config/config');
 
 const { login, getAccount } = require("../services/igMarkets");
 const { admin } = require('../../firebase/firebaseAdmin');
-const { sendTelegramMessageID } = require('../services/telegram');
+const { sendTelegramMessageID, telegramUsersSender } = require('../services/telegram');
 const { isWeekend } = require('../utils/date');
 
 const app = express();
-const PORT = config.port || 3000;
+const PORT = config.port || 8080;
 const db = admin.firestore();
 
 // ✅ Absolute path to dist folder
@@ -226,6 +226,34 @@ app.get("/api/get-account-status/:uid", firebaseAuthMiddleware, async (req, res)
     }
     const data = userDoc.data();
     const igAccount = data?.igAccount || null;
+    if (igAccount) {
+      const authHeaders = await login(igAccount.apiKey, igAccount.username, igAccount.password);
+      const account = await getAccount(igAccount.accountID, authHeaders);
+      igAccount.balance = account.balance.balance;
+
+      // Update balance in Firestore
+      const ref = db.collection("UserSettings").doc(uid);
+      const snap = await ref.get();
+      if (!snap.exists) {
+        await ref.set(
+          {
+            igAccount: {
+              ...igAccount
+            }
+          },
+          { merge: true }
+        );
+      } else {
+        await ref.update(
+          {
+            igAccount: {
+              ...igAccount
+            }
+          },
+          { merge: true }
+        );
+      }
+    }
     const telegramChatId = data?.telegramChatId || null;
 
     return res.status(200).json({
@@ -234,10 +262,11 @@ app.get("/api/get-account-status/:uid", firebaseAuthMiddleware, async (req, res)
     });
   } catch (err) {
     if (err.code === "auth/user-not-found") {
+      console.error("User not found.", err.message);
       return res.status(404).json({ error: "User not found." });
     }
 
-    console.error("Error fetching account data:", err);
+    console.error("Error fetching account data:", err.message);
     return res.status(500).json({ error: "Internal server error." });
   }
 });
@@ -369,6 +398,17 @@ app.delete("/api/delete-account/:type/:uid", firebaseAuthMiddleware, async (req,
   } catch (err) {
     console.error("delete-account error:", err);
     return res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+app.post("/api/data/telegram-broadcast", botAuthMiddleware, async (req, res) => {
+  const { msg } = req.body;
+  try {
+    await telegramUsersSender(msg, { parse_mode: "Markdown" });
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("Telegram broadcast error:", err);
+    return res.status(500).json({ ok: false, error: "Internal server error." });
   }
 });
 

@@ -26,6 +26,7 @@ export default function Dashboard() {
     const prevLogsLength = useRef(0);
     const hasMountedRef = useRef(false);
     const [showGuide, setShowGuide] = useState(false);
+    const [idToken, setIdToken] = useState(null);
 
     const fetchApiData = async (currentUser) => { // Pass currentUser as an argument
         if (!currentUser) return; // Don't fetch if no user is logged in
@@ -66,9 +67,13 @@ export default function Dashboard() {
 
     const fetchIGData = async () => {
         try {
-            const userInfo = await getUserIG(auth.currentUser.uid)
-            setIgAccount(userInfo.igAccount || null);
-            setMoneyAtRisk(userInfo.igAccount.balance * config.risk.perTrade || 0);
+            const userInfo = await api.get(`/api/get-account-status/${auth.currentUser.uid}`, {
+                        headers: {
+                            Authorization: `Bearer ${idToken}`
+                        }
+                    });
+            setIgAccount(userInfo?.data.igAccount || null);
+            setMoneyAtRisk(userInfo?.data.igAccount?.balance * config.risk.perTrade || 0);
         } catch (err) {
             setIgAccount(null);
             setMoneyAtRisk(0);
@@ -94,8 +99,12 @@ export default function Dashboard() {
 
     // AUTH LISTENER for user and authLoading states
     useEffect(() => {
-        const unsub = onAuthStateChanged(auth, (firebaseUser) => {
+        const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
             setUser(firebaseUser);
+            if (firebaseUser) {
+                const token = await firebaseUser.getIdToken();
+                setIdToken(token);
+            } else setIdToken(null);
             setAuthLoading(false);
         });
         return () => unsub();

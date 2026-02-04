@@ -48,9 +48,9 @@ async function getDailySeriesArray() {
 
 
 
-async function get15mSeriesArray() {
+async function get15mSeriesArray(twelveData) {
     try {
-        const res = await requestWithKeyRotation(
+        const res = await twelveData.request(
             `${config.twelveData.baseUrl}/time_series`,
             {
                 symbol: "EUR/USD",
@@ -82,9 +82,9 @@ async function get15mSeriesArray() {
 }
 
 
-async function getLivePrice() {
+async function getLivePrice(twelveData) {
     try {
-        const res = await requestWithKeyRotation(
+        const res = await twelveData.request(
             `${config.twelveData.baseUrl}/price`,
             { symbol: "EUR/USD" }
         );
@@ -103,9 +103,9 @@ async function getLivePrice() {
 }
 
 
-async function fetchLatestClosedCandle() {
+async function fetchLatestClosedCandle(twelveData) {
     try {
-        const res = await requestWithKeyRotation(
+        const res = await twelveData.request(
             `${config.twelveData.baseUrl}/time_series`,
             {
                 symbol: "EUR/USD",

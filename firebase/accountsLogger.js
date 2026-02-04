@@ -29,34 +29,34 @@ async function executeTradeOnAllAccounts(entryData) {
     })
 }
 
-async function updateBalance () {
-    const processAccounts = async () => {
-        const snapshot = await getData("UserSettings");
-        if (!snapshot || snapshot.empty) return;
+// async function updateBalance () {
+//     const processAccounts = async () => {
+//         const snapshot = await getData("UserSettings");
+//         if (!snapshot || snapshot.empty) return;
 
-        for (const doc of snapshot.docs) {
-            const data = doc.data();
-            const igAccount = data.igAccount;
+//         for (const doc of snapshot.docs) {
+//             const data = doc.data();
+//             const igAccount = data.igAccount;
 
-            // 2️⃣ IG account already checked
-            if (data.igChecked === true && data.igUndefined !== true) {
-                try {
-                    const authHeaders = await login(igAccount.apiKey, igAccount.username, igAccount.password);
-                    const account = await getAccount(igAccount.accountID, authHeaders);
-                    const balance = account.balance.balance;
-                    await saveUserBalance(doc.id, balance);
-                } catch (err) {
-                    console.log("Error updating balance for", doc.id);
-                }
-            }
-        }
+//             // 2️⃣ IG account already checked
+//             if (data.igChecked === true && data.igUndefined !== true) {
+//                 try {
+//                     const authHeaders = await login(igAccount.apiKey, igAccount.username, igAccount.password);
+//                     const account = await getAccount(igAccount.accountID, authHeaders);
+//                     const balance = account.balance.balance;
+//                     await saveUserBalance(doc.id, balance);
+//                 } catch (err) {
+//                     console.log("Error updating balance for", doc.id);
+//                 }
+//             }
+//         }
 
-        // Schedule next run
-        setTimeout(processAccounts, 15 * 60 * 1000); // every 15 mins
-    };
+//         // Schedule next run
+//         setTimeout(processAccounts, 15 * 60 * 1000); // every 15 mins
+//     };
 
-    await processAccounts();
-}
+//     await processAccounts();
+// }
 
 
-module.exports = { executeTradeOnAllAccounts, updateBalance }
+module.exports = { executeTradeOnAllAccounts }

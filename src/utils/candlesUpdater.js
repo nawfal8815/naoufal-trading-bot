@@ -4,11 +4,11 @@ const { sleep } = require('./sleep');
 const { postData } = require('../server/apiClient');
 const { saveLivePrice } = require('../../firebase/queries');
 
-async function updateCandlesData() {
+async function updateCandlesData(twelveData) {
     try {
         const now = new Date();
         if (is15MinBoundary(now) || true) {
-            const candle = await fetchLatestClosedCandle();
+            const candle = await fetchLatestClosedCandle(twelveData);
             if (!candle || !candle.datetime) {
                 console.log("⚠️ Error getting the candle data");
                 return;
@@ -26,9 +26,9 @@ async function updateCandlesData() {
     }
 }
 
-async function updatePriceData() {
+async function updatePriceData(twelveData) {
     try {
-        const price = await getLivePrice();
+        const price = await getLivePrice(twelveData);
         await saveLivePrice({
             price: price
         });

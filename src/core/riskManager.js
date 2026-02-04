@@ -69,10 +69,6 @@ async function confirmationTimeChecker(rules) {
     }
 
     if (warningIssued) {
-        // sendTelegramMessage(
-        //     `⚠️ *Caution Advised*
-        //     Medium-impact news events are scheduled later today for ${config.symbol}. Please trade with caution.
-        // `, { parse_mode: "Markdown" });
         await postData({
             type: "telegram",
             msg: `⚠️ *Caution Advised*

@@ -63,7 +63,8 @@ export default function Settings() {
     // AUTH LISTENER
     useEffect(() => {
         const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
-            setUser(firebaseUser); if (firebaseUser) {
+            setUser(firebaseUser);
+            if (firebaseUser) {
                 const token = await firebaseUser.getIdToken();
                 setIdToken(token); // now it's a string
             } else {

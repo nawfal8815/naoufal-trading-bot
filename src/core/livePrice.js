@@ -1,7 +1,7 @@
 const { fetchLatestClosedCandle } =  require('../api/dataFeed');
 
-async function isPriceInFVG(fvg, signal) {
-    const candle = await fetchLatestClosedCandle();
+async function isPriceInFVG(fvg, signal, twelveData) {
+    const candle = await fetchLatestClosedCandle(twelveData);
     if (priceInFVG(candle, fvg, signal)) {
         return { candle: candle, inFVG: true };
     } else {

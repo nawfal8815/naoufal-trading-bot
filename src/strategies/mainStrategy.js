@@ -6,25 +6,20 @@ const { sleepUntilNextAsiaSession, msUntilNextAsiaSession } = require("../utils/
 const config = require("../../config/config");
 const { newsDecision } = require("../core/newsHandler");
 const { getNews } = require('../api/news');
-const { executeTradeOnAllAccounts, accountsApproval, updateBalance } = require("../../firebase/accountsLogger");
+const { executeTradeOnAllAccounts } = require("../../firebase/accountsLogger");
 const { monitorTrade } = require("../core/tradeMonitor");
 const { sleep } = require("../utils/sleep");
 const { postData } = require("../server/apiClient");
 const { setTimeZone, checkIfWeekend } = require("../utils/date");
 const { initCollections } = require('../../firebase/initCollections');
 const { saveLog, saveDailyInfo, saveNews, savePosition } = require('../../firebase/queries');
-const { updateCandlesData, updatePriceData } = require('../utils/candlesUpdater');
-const { telegramUsersSender } = require('../services/telegram');
+const twelveData = require("../services/twelveDataClient");
 const chalk = require('chalk').default;
 
 let strategyRunning = false; // prevent overlapping runs
 let tradesToday = 0;
 
 async function runStrategy() {
-
-    // await saveLog(`[${processId}] Starting strategy...`);
-
-
     //running main strategy logic
     try {
         //init collections
@@ -39,10 +34,6 @@ async function runStrategy() {
         }
         strategyRunning = true;
         console.log(`[${chalk.green(processId)}]: Starting strategy...`);
-
-
-        //start balance getter every 10 mins
-        updateBalance();
 
         // set Timezone
         config.timezone = await setTimeZone();
@@ -66,9 +57,7 @@ async function runStrategy() {
             return restartStrategy(delay, processId);
         }
 
-        // update latest candle and live price
-        updateCandlesData();
-        updatePriceData();
+        
 
         //set the timer to auto reexecute the strategie the next day
         const delay = await msUntilNextAsiaSession();
@@ -90,10 +79,12 @@ async function runStrategy() {
         }
         await saveNews(newsDB);
         if (newsRules.skipDay) {
-            telegramUsersSender(
-                `⚠️ *Trading Skipped Today*
+            await postData({
+                type: "telegram",
+                msg: `⚠️ *Trading Skipped Today*
                 High impact news events detected for ${config.symbol}. No trades will be taken today.
-            `, { parse_mode: "Markdown" });
+            `
+            });
             tradesToday = 0;
             console.log("Trading skipped for today due to high-impact news events.");
             await saveLog("Trading skipped for today due to high-impact news events.");
@@ -103,8 +94,6 @@ async function runStrategy() {
         if (newsRules.blockTimes.length === 0) config.tradeQuality += 20;
         if (newsRules.warnTimes.length === 0) config.tradeQuality += 10;
 
-        await sleep(2000); // brief pause before proceeding
-
 
         //get todays signal
         const signal = await signalBuilder();
@@ -113,19 +102,17 @@ async function runStrategy() {
             saveLog("No valid signal, retrying in 30 secs...");
             return restartStrategy(30000, processId);
         }
-
-        telegramUsersSender(
-            `📈 *New Signal Detected! ${config.symbol}*
+        await postData({
+            type: "telegram",
+            msg: `📈 *New Signal Detected! ${config.symbol}*
             Potential: ${signal.potential}
-        `, { parse_mode: "Markdown" });
-
+        `
+        });
         console.log("Final Signal:", signal.potential);
         await saveLog("Final Signal: " + signal.potential);
 
-        await sleep(2000); // brief pause before proceeding
-
         //find closest virgin FVG
-        const fvg = await findClosestVirginFVG(signal);
+        const fvg = await findClosestVirginFVG(signal, twelveData);
         if (!fvg) {
             console.log("No virgin FVG found, restarting strategy the next day...");
             saveLog("No virgin FVG found, restarting strategy the next day...");
@@ -133,18 +120,16 @@ async function runStrategy() {
         }
 
         if (fvg.fullVirgin) config.tradeQuality += 10;
-
-        telegramUsersSender(
-            `📊 *Closest Virgin FVG*
+        await postData({
+            type: "telegram",
+            msg: `📊 *Closest Virgin FVG*
             Type: ${fvg.type}
             Created At: ${fvg.createdAt}
             Gap Low: ${fvg.gapLow}
            Gap High: ${fvg.gapHigh}
             Virgin: ${fvg.fullVirgin ? "Full" : "50%"}
-            `,
-            { parse_mode: "Markdown" }
-        );
-
+            `
+        });
         console.log("Closest Virgin FVG for signal:", fvg);
         await saveLog(`📊 *Closest Virgin FVG*
             Type: ${fvg.type}
@@ -153,8 +138,6 @@ async function runStrategy() {
            Gap High: ${fvg.gapHigh}
             Virgin: ${fvg.fullVirgin ? "Full" : "50%"}
             `);
-
-        await sleep(2000); // brief pause before proceeding
 
         //to add later: check if the market is ranged or trending before monitoring FVG
         // if (isMarketRanged()) config.tradeQuality += 10;
@@ -183,18 +166,20 @@ async function runStrategy() {
         const result = await monitorFVG({
             fvg,
             signal,
-            processId
+            processId,
+            twelveData
         });
 
 
 
         if (result.status === "confirmed") {
             if (!confirmationTimeChecker(newsRules)) {
-                telegramUsersSender(
-                    `⛔ *Trade Cancelled! ${config.symbol}*
+                await postData({
+                    type: "telegram",
+                    msg: `⛔ *Trade Cancelled! ${config.symbol}*
                     Trade cancelled due to high-impact news events.
-                    `, { parse_mode: "Markdown" });
-
+                    `
+                });
                 console.log("Trade cancelled due to news impact.");
                 await saveLog("Trade cancelled due to news impact.");
                 return restartStrategy(0, processId);
@@ -211,14 +196,15 @@ async function runStrategy() {
                 await saveLog("Placing trade with entry data: Entry price " + displayedEntryData.entryPrice + ", Stop lose " + displayedEntryData.sl + ", Take profit " + displayedEntryData.tp);
                 console.log("Trade placed with succes.");
                 await saveLog("Trade placed with succes.");
-                telegramUsersSender(
-                    `🚀 *Trade Confirmed! ${config.symbol}*
+                await postData({
+                    type: "telegram",
+                    msg: `🚀 *Trade Confirmed! ${config.symbol}*
                     Bias: ${signal.potential}
                     Entry Price: ${displayedEntryData.entryPrice}
                     Stop Loss: ${displayedEntryData.sl}
                     Take Profit: ${displayedEntryData.tp}
-                    `, { parse_mode: "Markdown" });
-
+                    `
+                });
                 tradesToday++;
                 const positionDB = {
                     direction: signal.potential,
@@ -229,7 +215,7 @@ async function runStrategy() {
                 }
                 await savePosition(positionDB);
 
-                await monitorTrade(displayedEntryData.tp, displayedEntryData.sl, signal.potential, processId);
+                await monitorTrade(displayedEntryData.tp, displayedEntryData.sl, signal.potential, processId, twelveData);
                 if (tradesToday === config.risk.maxTreadesPerDay) {
                     tradesToday = 0;
                     console.log("Max trades amount for today has been reached, restarting...");

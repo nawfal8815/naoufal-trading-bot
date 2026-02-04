@@ -7,7 +7,7 @@ const { saveLivePrice } = require('../../firebase/queries');
 const config = require('../../config/config');
 const chalk = require('chalk').default;
 
-async function monitorFVG({ fvg, signal, processId }) {
+async function monitorFVG({ fvg, signal, processId, twelveData }) {
     if (!fvg) return { status: "expired" };
     console.log(`[${chalk.green(processId)}]: ⏳ Waiting for price to enter FVG...`);
     await postData({
@@ -31,9 +31,9 @@ async function monitorFVG({ fvg, signal, processId }) {
 
     // ---- PHASE 1: wait for touch ----
     while (true) {
-        const priceData = await isPriceInFVG(fvg, signal);
+        const priceData = await isPriceInFVG(fvg, signal, twelveData);
         if (priceData.inFVG) {
-            console.log(`[${chalk.green(processId)}]: 🎯 Price entered FVG: ${priceData.candle}`);
+            console.log(`[${chalk.green(processId)}]: 🎯 Price entered FVG: ${priceData.candle.close}`);
             await postData({
                 type: "fvgStatus",
                 status: `🎯 Price entered FVG: ${priceData.candle}`
@@ -73,7 +73,7 @@ async function monitorFVG({ fvg, signal, processId }) {
             continue;
         }
 
-        const candle = await fetchLatestClosedCandle();
+        const candle = await fetchLatestClosedCandle(twelveData);
         if (!candle) {
             await sleep(5000);
             continue;

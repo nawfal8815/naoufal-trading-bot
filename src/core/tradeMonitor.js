@@ -2,36 +2,30 @@ const { getLivePrice } = require('../api/dataFeed');
 const config = require('../../config/config')
 const chalk = require('chalk').default;
 
-async function monitorTrade(tpPrice, slPrice, bias, processId) {
+async function monitorTrade(tpPrice, slPrice, bias, processId, twelveData) {
     const interval = 15 * 60 * 1000; // 15 minutes in ms
     console.log(`[${chalk.green(processId)}]: ⏱ Starting trade monitor. TP: ${tpPrice}, SL: ${slPrice}`);
     const monitorId = setInterval(async () => {
         try {
-            const currentPrice = await getLivePrice();
+            const currentPrice = await getLivePrice(twelveData);
             console.log(`[${chalk.green(processId)}]: ⏱ Current price for ${config.symbol}: ${currentPrice}`);
             if (bias === "buy") {
                 if (currentPrice >= tpPrice) {
                     console.log(`[${chalk.green(processId)}]: ✅ Trade WIN! Price reached TP: ${tpPrice}`);
-                    //     telegramUsersSender(`✅ *Trade WIN! ${config.symbol}*
-                    // Price reached Take Profit: ${tpPrice}
-                    // `, { parse_mode: "Markdown" });
                     await postData({
                         type: "telegram",
                         msg: `✅ *Trade WIN! ${config.symbol}*
-                Price reached Take Profit: ${tpPrice}
-                `
+                            Price reached Take Profit: ${tpPrice}
+                            `
                     });
                     clearInterval(monitorId);
                 } else if (currentPrice <= slPrice) {
                     console.log(`[${chalk.red(processId)}]: ❌ Trade LOSE! Price hit SL: ${slPrice}`);
-                    //     telegramUsersSender(`❌ *Trade LOSE! ${config.symbol}*
-                    // Price hit Stop Loss: ${slPrice}
-                    // `, { parse_mode: "Markdown" });
                     await postData({
                         type: "telegram",
                         msg: `❌ *Trade LOSE! ${config.symbol}*
-                Price hit Stop Loss: ${slPrice}
-                `
+                            Price hit Stop Loss: ${slPrice}
+                            `
                     });
                     clearInterval(monitorId);
                 } else {
@@ -40,21 +34,15 @@ async function monitorTrade(tpPrice, slPrice, bias, processId) {
             } else {
                 if (currentPrice <= tpPrice) {
                     console.log(`[${chalk.green(processId)}]: ✅ Trade WIN! Price reached TP: ${tpPrice}`);
-                    //     telegramUsersSender(`✅ *Trade WIN! ${config.symbol}*
-                    // Price reached Take Profit: ${tpPrice}
-                    // `, { parse_mode: "Markdown" });
                     await postData({
                         type: "telegram",
                         msg: `✅ *Trade WIN! ${config.symbol}*
-                Price reached Take Profit: ${tpPrice}
-                `
+                            Price reached Take Profit: ${tpPrice}
+                            `
                     });
                     clearInterval(monitorId);
                 } else if (currentPrice >= slPrice) {
                     console.log(`[${chalk.red(processId)}]: ❌ Trade LOSE! Price hit SL: ${slPrice}`);
-                    //     telegramUsersSender(`❌ *Trade LOSE! ${config.symbol}*
-                    // Price hit Stop Loss: ${slPrice}
-                    // `, { parse_mode: "Markdown" });
                     await postData({
                         type: "telegram",
                         msg: `❌ *Trade LOSE! ${config.symbol}*

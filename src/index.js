@@ -3,12 +3,15 @@ require("dotenv").config();
 
 const { server } = require("./server/server");
 const { runStrategy } = require("./strategies/mainStrategy");
+const { updateCandlesData, updatePriceData } = require('./utils/candlesUpdater');
+const twelveData = require("./services/twelveDataClient");
 
 (async () => {
   try {
-    console.log("🧠 Starting strategy...");
+    // update latest candle and live price
+    updateCandlesData(twelveData);
+    updatePriceData(twelveData);
     await runStrategy();
-    console.log("✅ Strategy started");
   } catch (err) {
     console.error("❌ Strategy failed to start:", err);
     process.exit(1);

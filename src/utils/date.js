@@ -67,6 +67,25 @@ function getNextAsiaSessionDate() {
     return nextAsiaSession;
 }
 
+function getPreviousAsiaSessionDate() {
+    const { hour, minute } = getLocalAsiaSessionStart();
+    const now = new Date();
+
+    // Asia session start TODAY (local time)
+    const prevAsiaSession = new Date(now).toISOString().split("T")[0] + "T" + hour.toString().padStart(2, '0') + ":" + minute.toString().padStart(2, '0') + ":00";
+    // If already passed → move to yesterday
+    if (new Date(prevAsiaSession) >= now) {
+        // Deduct 1 day by creating a new Date
+        const yesterday = new Date(prevAsiaSession);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayString = new Date(yesterday).toISOString().split("T")[0] + "T" + hour.toString().padStart(2, '0') + ":" + minute.toString().padStart(2, '0') + ":00";
+
+        return yesterdayString; // or keep as string if you prefer
+    }
+
+    return prevAsiaSession;
+}
+
 
 async function setTimeZone () {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -89,5 +108,5 @@ const isWeekend = (datetime) => {
 };
 
 
-module.exports = { is15MinBoundary, timeToMinutes, getNextAsiaSessionDate, setTimeZone, checkIfWeekend, isWeekend };
+module.exports = { is15MinBoundary, timeToMinutes, getNextAsiaSessionDate, getPreviousAsiaSessionDate, setTimeZone, checkIfWeekend, isWeekend };
 

@@ -1,19 +1,10 @@
 const config = require("../../config/config");
 const { get15mSeriesArray } = require("../api/dataFeed");
 const { postData } = require('../server/apiClient.js');
-const { getNextAsiaSessionDate } = require('../utils/date');
+const { getNextAsiaSessionDate, getPreviousAsiaSessionDate } = require('../utils/date');
 
-function isBeforePreviousAsiaSession(candleDatetime) {
-    const candleTime = new Date(candleDatetime.replace(" ", "T"));
-
-    // Get the next Asia session first
-    const nextAsiaSession = new Date(getNextAsiaSessionDate());
-
-    // Subtract 1 day to get the previous session
-    const previousAsiaSession = new Date(nextAsiaSession);
-    previousAsiaSession.setDate(previousAsiaSession.getDate() - 1);
-
-    return candleTime < previousAsiaSession;
+function isBeforePreviousAsiaSession(candleDatetime) {;
+    return new Date(candleDatetime) < new Date(getPreviousAsiaSessionDate());
 }
 
 
@@ -28,21 +19,6 @@ function isFullyCompleted(candleTime) {
 
     // Check if 15 minutes have passed
     return timeDiffMs >= fifteenMinutesMs;
-}
-
-function toUtcTimestamp(datetime) {
-    // Converts "YYYY-MM-DD HH:mm:ss" → UTC timestamp
-    return Date.parse(datetime.replace(" ", "T") + "Z");
-}
-
-function sameUtcDay(ts1, ts2) {
-    const d1 = new Date(ts1);
-    const d2 = new Date(ts2);
-    return (
-        d1.getUTCFullYear() === d2.getUTCFullYear() &&
-        d1.getUTCMonth() === d2.getUTCMonth() &&
-        d1.getUTCDate() === d2.getUTCDate()
-    );
 }
 
 
@@ -99,16 +75,14 @@ function findFVGs(candles) {
 
 function isVirginFVG(fvg, candles, signal) {
     let touched = false;
-    const nowTs = Date.now();
+    const now = new Date();
 
     for (const c of candles) {
         // only candles AFTER creation
-        const candleTs = toUtcTimestamp(c.datetime);
-        const fvgTs = toUtcTimestamp(fvg.createdAt);
+        const candleTime = new Date(c.datetime);
+        const fvgTime = new Date(fvg.createdAt);
 
-        if (candleTs <= fvgTs) continue;
-        if (!sameUtcDay(candleTs, fvgTs)) continue;
-        if (candleTs < getNextAsiaSessionDate()) continue;
+        if (candleTime <= fvgTime) continue;
 
 
 
@@ -123,7 +97,7 @@ function isVirginFVG(fvg, candles, signal) {
 
             if (
                 signal.targetValid &&
-                sameUtcDay(candleTs, nowTs) &&
+                candleTime.getDay() === fvgTime.getDay() &&
                 signal.target < c.high
             ) {
                 signal.targetValid = false;
@@ -133,7 +107,6 @@ function isVirginFVG(fvg, candles, signal) {
             // touched but still valid (50%)
             if (c.low < fvg.gapHigh && c.low >= fvg.gapMid) {
                 touched = true;
-                console.log("touched bullish FVG at", fvg.createdAt);
             }
         }
 
@@ -146,7 +119,7 @@ function isVirginFVG(fvg, candles, signal) {
 
             if (
                 signal.targetValid &&
-                sameUtcDay(candleTs, nowTs) &&
+                candleTime.getDay() === now.getDay() &&
                 signal.target > c.low
             ) {
                 signal.targetValid = false;
@@ -156,7 +129,7 @@ function isVirginFVG(fvg, candles, signal) {
             // touched but still valid (50%)
             if (c.high > fvg.gapLow && c.high <= fvg.gapMid) {
                 touched = true;
-                console.log("touched bearish FVG at", fvg.createdAt);
+                // console.log("touched bearish FVG at", fvg.createdAt);
             }
         }
     }
@@ -169,8 +142,8 @@ function isVirginFVG(fvg, candles, signal) {
 
 
 
-async function findClosestVirginFVG(signal) {
-    const candles = await get15mSeriesArray();
+async function findClosestVirginFVG(signal, twelveData) {
+    const candles = await get15mSeriesArray(twelveData);
     await postData({
         type: "candles",
         timestamp: new Date().toISOString(),
