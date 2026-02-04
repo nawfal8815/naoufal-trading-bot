@@ -3,8 +3,9 @@ const { fetchLatestClosedCandle, getLivePrice } = require('../api/dataFeed');
 const { sleep } = require('./sleep');
 const { postData } = require('../server/apiClient');
 const { saveLivePrice } = require('../../firebase/queries');
+const twelveData = require("../services/twelveDataClient");
 
-async function updateCandlesData(twelveData) {
+async function updateCandlesData() {
     try {
         const now = new Date();
         if (is15MinBoundary(now) || true) {
@@ -26,7 +27,7 @@ async function updateCandlesData(twelveData) {
     }
 }
 
-async function updatePriceData(twelveData) {
+async function updatePriceData() {
     try {
         const price = await getLivePrice(twelveData);
         await saveLivePrice({
