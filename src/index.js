@@ -1,6 +1,4 @@
-// src/index.js
 require("dotenv").config();
-
 const { server } = require("./server/server");
 const { runStrategy } = require("./strategies/mainStrategy");
 const { updateCandlesData, updatePriceData } = require('./utils/candlesUpdater');

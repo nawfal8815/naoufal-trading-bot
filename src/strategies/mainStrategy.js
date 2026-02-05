@@ -96,7 +96,7 @@ async function runStrategy() {
 
 
         //get todays signal
-        const signal = await signalBuilder();
+        const signal = await signalBuilder(twelveData);
         if (!signal || signal.potential === "none") {
             console.log("No valid signal, retrying in 30 secs...");
             saveLog("No valid signal, retrying in 30 secs...");

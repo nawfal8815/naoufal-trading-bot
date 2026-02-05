@@ -1,5 +1,3 @@
-require("dotenv").config();
-
 module.exports = {
     timezone: "",
     symbol: "EURUSD",
@@ -8,6 +6,7 @@ module.exports = {
     timeframe: "M15",
     daylycandles: 20,
     candles15needed: 4 * 24 * 50, //7 days of candles
+    candlesDailyNeeded: 30,
     port: process.env.PORT,
     url: process.env.URL,
     tradeQuality: 0,
@@ -54,7 +53,7 @@ module.exports = {
     oanda: {
         apiKey: process.env.OANDA_API_KEY,
         baseUrl: process.env.OANDA_API_BASE_URL,
-        environment: process.env.OANDA_ENVIRONMENT 
+        environment: process.env.OANDA_ENVIRONMENT
     },
 
     finnhub: {

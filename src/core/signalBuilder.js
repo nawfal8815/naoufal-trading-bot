@@ -2,8 +2,8 @@ const { getDailySeriesArray } = require("../api/dataFeed");
 const { detectAlignment, mapSignal } = require("../core/biasDetector");
 const { saveLog } = require('../../firebase/queries');
 
-async function scanForSignal() {
-    const series = await getDailySeriesArray();
+async function scanForSignal(twelveData) {
+    const series = await getDailySeriesArray(twelveData);
     if (!series.length) {
         console.log("No FX data available.");
         await saveLog("No FX data available.");
