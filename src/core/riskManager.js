@@ -1,6 +1,7 @@
 const config = require("../../config/config");
 const { timeToMinutes } = require("../utils/date");
 const { postData } = require("../server/apiClient");
+const chalk = require('chalk').default;
 
 async function getEntryData(fvg, candle, bias) {
     if (bias === "buy") {
@@ -43,7 +44,7 @@ async function getLotsize(entryData, balance) {
 
 }
 
-async function confirmationTimeChecker(rules) {
+async function confirmationTimeChecker(rules, processId) {
 
     let warningIssued = false;
     const now = new Date();
@@ -53,7 +54,7 @@ async function confirmationTimeChecker(rules) {
     for (const time of rules.blockTimes) {
         const eventMinutes = timeToMinutes(time);
         if (eventMinutes !== null && currentMinutes < eventMinutes) {
-            console.log("⛔ High-impact event later today. Trading skipped.");
+            console.log(`[${chalk.red(processId)}]: ⛔ High-impact event later today. Trading skipped.`);
             return false;
         }
     }
@@ -63,7 +64,7 @@ async function confirmationTimeChecker(rules) {
         const eventMinutes = timeToMinutes(time);
         if (eventMinutes !== null && currentMinutes < eventMinutes) {
             warningIssued = true;
-            console.log("⚠️ Medium-impact event later today. Trade with caution.");
+            console.log(`[${chalk.yellow.bold(processId)}]: ⚠️ Medium-impact event later today. Trade with caution.`);
             return true;
         }
     }

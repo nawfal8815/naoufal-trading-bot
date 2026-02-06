@@ -1,4 +1,5 @@
 const { db, admin } = require("./firebaseAdmin");
+const chalk = require('chalk').default;
 
 const collections = ["Daily_Info", "Logs", "Positions", "Live_Price", "News"];
 
@@ -14,7 +15,7 @@ async function clearCollection(collectionName) {
   await batch.commit();
 }
 
-async function initCollections() {
+async function initCollections(processId) {
   for (const col of collections) {
     try {
       // 🧹 Special case: Logs → always delete first
@@ -25,7 +26,7 @@ async function initCollections() {
           _init: true,
         });
 
-        console.log(`Logs collection cleared and re-initialized`);
+        console.log(`[${chalk.green(processId)}]: Logs collection cleared and re-initialized`);
         continue;
       }
 
@@ -39,11 +40,11 @@ async function initCollections() {
         });
       }
     } catch (err) {
-      console.error(`Failed to check/init collection "${col}"`, err);
+      console.error(`[${chalk.red(processId)}]: Failed to check/init collection "${col}"`, err);
     }
   }
 
-  console.log("Collection check complete");
+  console.log(`[${chalk.green(processId)}]: Collection check complete`);
 }
 
 module.exports = { initCollections };

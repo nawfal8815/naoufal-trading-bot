@@ -20,15 +20,16 @@ let strategyRunning = false; // prevent overlapping runs
 let tradesToday = 0;
 const RESTART_DELAY = 30 * 60 * 1000; // 30 minutes for now
 const RESTART_UNIT = "minutes";
+let processId;
 
 async function runStrategy() {
     //running main strategy logic
     try {
-        //init collections
-        await initCollections();
-
         //generate a process id
-        const processId = Math.random().toString(36).substring(2, 9); // Unique ID for this process invocation
+        processId = Math.random().toString(36).substring(2, 9); // Unique ID for this process invocation
+        
+        //init collections
+        await initCollections(processId);
 
         if (strategyRunning) {
             console.log(`[${chalk.green(processId)}]: Strategy already running, preventing overlap.`);
@@ -38,21 +39,21 @@ async function runStrategy() {
         console.log(`[${chalk.green(processId)}]: Starting strategy...`);
 
         // set Timezone
-        config.timezone = await setTimeZone();
+        config.timezone = await setTimeZone(processId);
         if (config.timezone != "") {
             await postData({
                 type: "timezone",
                 timezone: config.timezone,
             });
         } else {
-            console.log("❌ Error posting the timezone");
+            console.log(`[${chalk.red(processId)}]: ❌ Error posting the timezone`);
             await saveLog("❌ Error posting the timezone");
         }
 
         //check if its weekend
         if (await checkIfWeekend()) {
             tradesToday
-            console.log("Weekend — no trading 🚫");
+            console.log(`[${chalk.red(processId)}]: Weekend — no trading 🚫`);
             await saveLog("Weekend — no trading 🚫");
             tradesToday = 0;
             const delay = await msUntilNextAsiaSession();
@@ -64,16 +65,16 @@ async function runStrategy() {
         //set the timer to auto reexecute the strategie the next day
         const delay = await msUntilNextAsiaSession();
         setTimeout(async () => {
-            console.log("🌅 New Asia session... Restarting the strategy");
+            console.log(`[${chalk.red(processId)}]: 🌅 New Asia session... Restarting the strategy`);
             saveLog("🌅 New Asia session... Restarting the strategy");
             tradesToday = 0;
             return await restartStrategy(0, processId);
         }, delay);
 
         // Check news first
-        const events = await getNews();
+        const events = await getNews(processId);
         const newsRules = await newsDecision(events);
-        console.log(newsRules.decision);
+        console.log(`[${chalk.green(processId)}]: ${newsRules.decision}`);
         await saveLog(newsRules.decision);
         const newsDB = {
             decision: newsRules.decision,
@@ -88,7 +89,7 @@ async function runStrategy() {
             `
             });
             tradesToday = 0;
-            console.log("Trading skipped for today due to high-impact news events.");
+            console.log(`[${chalk.yellow.bold(processId)}]: Trading skipped for today due to high-impact news events.`);
             await saveLog("Trading skipped for today due to high-impact news events.");
             await sleepUntilNextAsiaSession();
             return restartStrategy(0, processId); // restart fresh next day
@@ -98,9 +99,9 @@ async function runStrategy() {
 
 
         //get todays signal
-        const signal = await signalBuilder(twelveData);
+        const signal = await signalBuilder(twelveData, processId);
         if (!signal || signal.potential === "none") {
-            console.log(`No valid signal, retrying in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
+            console.log(`[${chalk.red(processId)}]: No valid signal, retrying in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
             await saveLog(`No valid signal, retrying in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
             return await restartStrategy(RESTART_DELAY, processId);
         }
@@ -110,7 +111,7 @@ async function runStrategy() {
             Potential: ${signal.potential}
         `
         });
-        console.log("Final Signal:", signal.potential);
+        console.log(`[${chalk.green(processId)}]: Final Signal: ${signal.potential}`);
         await saveLog("Final Signal: " + signal.potential);
 
         //find closest virgin FVG
@@ -133,7 +134,7 @@ async function runStrategy() {
             Virgin: ${fvg.fullVirgin ? "Full" : "50%"}
             `
         });
-        console.log("Closest Virgin FVG for signal:", fvg);
+        console.log(`[${chalk.green(processId)}]: Closest Virgin FVG for signal:`, fvg);
         await saveLog(`📊 *Closest Virgin FVG*
             Type: ${fvg.type}
             Created At: ${fvg.createdAt}
@@ -169,20 +170,20 @@ async function runStrategy() {
         const result = await monitorFVG({
             fvg,
             signal,
-            processId,
-            twelveData
+            twelveData,
+            processId
         });
 
 
         if (result.status === "confirmed") {
-            if (!confirmationTimeChecker(newsRules)) {
+            if (!confirmationTimeChecker(newsRules, processId)) {
                 await postData({
                     type: "telegram",
                     msg: `⛔ *Trade Cancelled! ${config.symbol}*
                     Trade cancelled due to high-impact news events.
                     `
                 });
-                console.log(`Trade cancelled due to news impact. Restarting strategy in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
+                console.log(`[${chalk.red(processId)}]: Trade cancelled due to news impact. Restarting strategy in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
                 await saveLog(`Trade cancelled due to news impact. Restarting strategy in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
                 return await restartStrategy(RESTART_DELAY, processId);
             } else {
@@ -193,10 +194,10 @@ async function runStrategy() {
                     tp: Number((entryData.tp / config.risk.slMultipler).toFixed(3)),
                     sl: Number((entryData.sl / config.risk.slMultipler).toFixed(3))
                 }
-                console.log("Placing trade with entry data: Entry price " + displayedEntryData.entryPrice + ", Stop lose " + displayedEntryData.sl + ", Take profit " + displayedEntryData.tp);
+                console.log(`[${chalk.blue.underline(processId)}]: Placing trade with entry data: Entry price ${displayedEntryData.entryPrice}, Stop lose ${displayedEntryData.sl}, Take profit ${displayedEntryData.tp}`);
                 await saveLog("Placing trade with entry data: Entry price " + displayedEntryData.entryPrice + ", Stop lose " + displayedEntryData.sl + ", Take profit " + displayedEntryData.tp);
                 await executeTradeOnAllAccounts(entryData);
-                console.log("Trade placed with succes.");
+                console.log(`[${chalk.green(processId)}]: Trade placed with succes.`);
                 await saveLog("Trade placed with succes.");
                 await postData({
                     type: "telegram",
@@ -220,27 +221,27 @@ async function runStrategy() {
                 await monitorTrade(displayedEntryData.tp, displayedEntryData.sl, signal.potential, processId, twelveData);
                 if (tradesToday === config.risk.maxTreadesPerDay) {
                     tradesToday = 0;
-                    console.log("Max trades amount for today has been reached, restarting next Asia session...");
+                    console.log(`[${chalk.red(processId)}]: Max trades amount for today has been reached, restarting next Asia session...`);
                     await saveLog("Max trades amount for today has been reached, restarting next Asia session...");
                     await sleepUntilNextAsiaSession();
                     return restartStrategy(0, processId);
                 } else {
-                    console.log(`Trade executed successfully. Restarting strategy in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
-                    await saveLog(`Trade executed successfully. Restarting strategy in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
+                    console.log(`[${chalk.blue.underline(processId)}]: Trade finished successfully. Restarting strategy in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
+                    await saveLog(`Trade finished successfully. Restarting strategy in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
                     return restartStrategy(RESTART_DELAY, processId);
                 }
             }
         } if (result.status === "expired") {
-            console.log(`FVG expired or invalidated. Restarting strategy in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
+            console.log(`[${chalk.red(processId)}]: FVG expired or invalidated. Restarting strategy in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
             await saveLog(`FVG expired or invalidated. Restarting strategy in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
             return restartStrategy(RESTART_DELAY, processId);
         }
 
     } catch (err) {
-        console.error("Strategy error:", err);
+        console.error(`[${chalk.red(processId)}]: Strategy error: ${err}`);
         await saveLog("Strategy error: " + err);
 
-        console.log(`Retrying strategy in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
+        console.log(`[${chalk.red(processId)}]: Retrying strategy in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
         return await restartStrategy(RESTART_DELAY, processId);
     }
 }
@@ -248,7 +249,7 @@ async function runStrategy() {
 async function restartStrategy(delay = 0, processId) {
     strategyRunning = false;
     if (delay > 0) {
-        console.log(`[${chalk.blue.underline(processId)}]: Waiting for ${delay / 1000} seconds before restarting...`);
+        console.log(`[${chalk.blue.underline(processId)}]: Waiting for ${delay / (60 * 1000)} ${RESTART_UNIT} before restarting...`);
         await sleep(delay);
     }
     console.log(`[${chalk.blue.underline(processId)}]: Restarting strategy...`);

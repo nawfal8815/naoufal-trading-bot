@@ -1,4 +1,6 @@
-function detectAlignment(prev, curr, lastCandle) {
+const chalk = require('chalk').default;
+
+function detectAlignment(prev, curr, lastCandle, processId) {
     if (!prev || !curr) return { type: "none", side: null, level: null, target: null };
 
     const bodyUpper = Math.max(curr.open, curr.close);
@@ -41,7 +43,7 @@ function detectAlignment(prev, curr, lastCandle) {
 
     // ---- CONFLICT CHECK ----
     if (signals.length > 1) {
-        console.log("⚠️ Conflict detected — multiple signals:", signals);
+        console.log(`[${chalk.yellow.bold(processId)}]: ⚠️ Conflict detected — multiple signals: ${signals}`);
         return { type: "conflict", side: null, level: null };
     }
 

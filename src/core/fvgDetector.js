@@ -24,7 +24,7 @@ function isFullyCompleted(candleTime) {
 
 
 
-function findFVGs(candles) {
+async function findFVGs(candles) {
     const fvgList = [];
 
     for (let i = 2; i < candles.length; i++) {
@@ -129,7 +129,6 @@ function isVirginFVG(fvg, candles, signal) {
             // touched but still valid (50%)
             if (c.high > fvg.gapLow && c.high <= fvg.gapMid) {
                 touched = true;
-                // console.log("touched bearish FVG at", fvg.createdAt);
             }
         }
     }
@@ -149,7 +148,7 @@ async function findClosestVirginFVG(signal, twelveData) {
         timestamp: new Date().toISOString(),
         candles: candles
     });
-    const fvgs = findFVGs(candles);
+    const fvgs = await findFVGs(candles);
     const virgin = fvgs.map(f => isVirginFVG(f, candles, signal)).filter(Boolean);
     if (virgin.length === 0) return null;
 

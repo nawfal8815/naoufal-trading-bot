@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
+const chalk = require('chalk').default;
 
-
-const getNews = async () => {
+const getNews = async (processId) => {
     const browser = await puppeteer.launch({
         headless: 'new',
         args: [
@@ -17,7 +17,7 @@ const getNews = async () => {
     //     console.log('PAGE LOG:', msg.text());
     // });
 
-    console.log('Navigating for news...');
+    console.log(`[${chalk.blue.underline(processId)}]: Navigating for news...`);
     await page.goto('https://www.forexfactory.com/', {
         waitUntil: 'networkidle0',
         timeout: 60000

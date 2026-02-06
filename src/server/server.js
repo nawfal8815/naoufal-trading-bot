@@ -7,6 +7,7 @@ const { login, getAccount } = require("../services/igMarkets");
 const { admin } = require('../../firebase/firebaseAdmin');
 const { sendTelegramMessageID, telegramUsersSender } = require('../services/telegram');
 const { isWeekend } = require('../utils/date');
+const chalk = require('chalk').default;
 
 const app = express();
 const PORT = config.port || 8080;
@@ -52,7 +53,7 @@ const firebaseAuthMiddleware = async (req, res, next) => {
     req.user = decodedToken;
     next();
   } catch (error) {
-    console.error("Error verifying Firebase ID token:", error);
+    console.error(`${chalk.dim("[SERVER]:")} Error verifying Firebase ID token: ${error.message}`);
     return res.status(401).json({ error: "Unauthorized: Invalid token." });
   }
 };
@@ -153,7 +154,7 @@ app.post("/api/verify-tg-chat-id", firebaseAuthMiddleware, async (req, res) => {
     }
     return res.status(500).json({ success: false, message: "Telegram chat ID verification failed." });
   } catch (error) {
-    console.error("Telegram chat ID verification failed", error);
+    console.error(`${chalk.dim("[SERVER]:")} Telegram chat ID verification failed: ${error.message}`);
     return res.status(500).json({ success: false, message: "Telegram chat ID verification failed.", error: error.message });
   }
 });
@@ -167,6 +168,16 @@ app.post("/api/verify-ig-account", firebaseAuthMiddleware, async (req, res) => {
 
   try {
     // check api key existance before adding to db
+    const snapshot = await db.collection("UserSettings").get();
+
+    snapshot.forEach(doc => {
+      const apiKey = doc.data().igAccount?.apiKey;
+
+      if (apiKey === igAccount.apiKey && doc.id !== uid) {
+        console.log(`${chalk.dim("[SERVER]:")} ❌ ${uid} apiKey already in use by another user`);
+        throw new Error("API key already in use by another user.");
+      }
+    });
     //TODO
 
     const authHeaders = await login(igAccount.apiKey, igAccount.username, igAccount.password);
@@ -205,7 +216,7 @@ app.post("/api/verify-ig-account", firebaseAuthMiddleware, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("IG account verification failed");
+    console.error(`${chalk.dim("[SERVER]:")} IG account verification failed: ${error.message}`);
     // If verification fails, update Firestore as undefined
     return res.status(500).json({ success: false, message: "IG account verification failed.", error: error.message });
   }
@@ -261,11 +272,11 @@ app.get("/api/get-account-status/:uid", firebaseAuthMiddleware, async (req, res)
     });
   } catch (err) {
     if (err.code === "auth/user-not-found") {
-      console.error("User not found.", err.message);
+      console.error(`${chalk.dim("[SERVER]:")} User not found. ${err.message}`);
       return res.status(404).json({ error: "User not found." });
     }
 
-    console.error("Error fetching account data:", err.message);
+    console.error(`${chalk.dim("[SERVER]:")} Error fetching account data: ${err.message}`);
     return res.status(500).json({ error: "Internal server error." });
   }
 });
@@ -318,7 +329,7 @@ app.post("/api/update-profile", firebaseAuthMiddleware, async (req, res) => {
       });
 
     } catch (err) {
-      console.error("Email update error:", err);
+      console.error(`${chalk.dim("[SERVER]:")} Email update error: ${err.message}`);
       return res.status(500).json({
         success: false,
         error: "Failed to update email."
@@ -333,7 +344,7 @@ app.post("/api/update-profile", firebaseAuthMiddleware, async (req, res) => {
         displayName: changingData
       });
     } catch (err) {
-      console.error("Display name update error:", err);
+      console.error(`${chalk.dim("[SERVER]:")} Display name update error: ${err.message}`);
       return res.status(500).json({
         success: false,
         error: "Failed to update username."
@@ -395,7 +406,7 @@ app.delete("/api/delete-account/:type/:uid", firebaseAuthMiddleware, async (req,
     return res.status(400).json({ error: "Invalid account type." });
 
   } catch (err) {
-    console.error("delete-account error:", err);
+    console.error(`${chalk.dim("[SERVER]:")} delete-account error: ${err.message}`);
     return res.status(500).json({ error: "Internal server error." });
   }
 });
@@ -406,7 +417,7 @@ app.post("/api/data/telegram-broadcast", botAuthMiddleware, async (req, res) => 
     await telegramUsersSender(msg, { parse_mode: "Markdown" });
     return res.status(200).json({ ok: true });
   } catch (err) {
-    console.error("Telegram broadcast error:", err);
+    console.error(`${chalk.dim("[SERVER]:")} Telegram broadcast error: ${err.message}`);
     return res.status(500).json({ ok: false, error: "Internal server error." });
   }
 });
@@ -426,7 +437,7 @@ app.get(/.*/, (req, res) => {
 });
 
 const server = app.listen(PORT, () => {
-  console.log(`🚀 Backend listening on port ${PORT}`);
+  console.log(`${chalk.dim("[SERVER]:")} 🚀 Backend listening on port ${PORT}`);
 });
 
 module.exports = { app, server };

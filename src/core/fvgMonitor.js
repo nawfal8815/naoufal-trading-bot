@@ -7,7 +7,7 @@ const { saveLivePrice } = require('../../firebase/queries');
 const config = require('../../config/config');
 const chalk = require('chalk').default;
 
-async function monitorFVG({ fvg, signal, processId, twelveData }) {
+async function monitorFVG({ fvg, signal, twelveData, processId }) {
     if (!fvg) return { status: "expired" };
     console.log(`[${chalk.green(processId)}]: ⏳ Waiting for price to enter FVG...`);
     await postData({

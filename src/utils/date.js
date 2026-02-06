@@ -1,3 +1,5 @@
+const chalk = require('chalk').default;
+
 function is15MinBoundary(date = new Date()) {
     const minutes = date.getMinutes();
     const seconds = date.getSeconds();
@@ -87,9 +89,9 @@ function getPreviousAsiaSessionDate() {
 }
 
 
-async function setTimeZone () {
+async function setTimeZone (processId) {
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    console.log("🌐 Detected Timezone:", timezone);
+    console.log(`[${chalk.green(processId)}]: 🌐 Detected Timezone:`, timezone);
     return timezone;
 }
 
