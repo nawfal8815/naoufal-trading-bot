@@ -43,7 +43,7 @@ function detectAlignment(prev, curr, lastCandle, processId) {
 
     // ---- CONFLICT CHECK ----
     if (signals.length > 1) {
-        console.log(`[${chalk.yellow.bold(processId)}]: ⚠️ Conflict detected — multiple signals: ${signals}`);
+        console.log(`[${chalk.yellow.bold(processId)}]: ⚠️ Conflict detected — multiple signals: `, signals);
         return { type: "conflict", side: null, level: null };
     }
 

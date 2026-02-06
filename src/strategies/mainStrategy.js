@@ -56,8 +56,8 @@ async function runStrategy() {
             console.log(`[${chalk.red(processId)}]: Weekend — no trading 🚫`);
             await saveLog("Weekend — no trading 🚫");
             tradesToday = 0;
-            const delay = await msUntilNextAsiaSession();
-            return await restartStrategy(delay, processId);
+            await sleepUntilNextAsiaSession();
+            return await restartStrategy(0, processId);
         }
 
         
@@ -72,30 +72,30 @@ async function runStrategy() {
         }, delay);
 
         // Check news first
-        // const events = await getNews(processId);
-        // const newsRules = await newsDecision(events);
-        // console.log(`[${chalk.green(processId)}]: ${newsRules.decision}`);
-        // await saveLog(newsRules.decision);
-        // const newsDB = {
-        //     decision: newsRules.decision,
-        //     events: events
-        // }
-        // await saveNews(newsDB);
-        // if (newsRules.skipDay) {
-        //     await postData({
-        //         type: "telegram",
-        //         msg: `⚠️ *Trading Skipped Today*
-        //         High impact news events detected for ${config.symbol}. No trades will be taken today.
-        //     `
-        //     });
-        //     tradesToday = 0;
-        //     console.log(`[${chalk.yellow.bold(processId)}]: Trading skipped for today due to high-impact news events.`);
-        //     await saveLog("Trading skipped for today due to high-impact news events.");
-        //     await sleepUntilNextAsiaSession();
-        //     return restartStrategy(0, processId); // restart fresh next day
-        // } else config.tradeQuality += 40;
-        // if (newsRules.blockTimes.length === 0) config.tradeQuality += 20;
-        // if (newsRules.warnTimes.length === 0) config.tradeQuality += 10;
+        const events = await getNews(processId);
+        const newsRules = await newsDecision(events);
+        console.log(`[${chalk.green(processId)}]: ${newsRules.decision}`);
+        await saveLog(newsRules.decision);
+        const newsDB = {
+            decision: newsRules.decision,
+            events: events
+        }
+        await saveNews(newsDB);
+        if (newsRules.skipDay) {
+            await postData({
+                type: "telegram",
+                msg: `⚠️ *Trading Skipped Today*
+                High impact news events detected for ${config.symbol}. No trades will be taken today.
+            `
+            });
+            tradesToday = 0;
+            console.log(`[${chalk.yellow.bold(processId)}]: Trading skipped for today due to high-impact news events.`);
+            await saveLog("Trading skipped for today due to high-impact news events.");
+            await sleepUntilNextAsiaSession();
+            return restartStrategy(0, processId); // restart fresh next day
+        } else config.tradeQuality += 40;
+        if (newsRules.blockTimes.length === 0) config.tradeQuality += 20;
+        if (newsRules.warnTimes.length === 0) config.tradeQuality += 10;
 
 
         //get todays signal
@@ -249,7 +249,7 @@ async function runStrategy() {
 async function restartStrategy(delay = 0, processId) {
     strategyRunning = false;
     if (delay > 0) {
-        console.log(`[${chalk.blue.underline(processId)}]: Waiting for ${delay / (60 * 1000)} ${RESTART_UNIT} before restarting...`);
+        console.log(`[${chalk.blue.underline(processId)}]: Waiting for ${(delay / (60 * 1000)).toFixed(0)} ${RESTART_UNIT} before restarting...`);
         await sleep(delay);
     }
     console.log(`[${chalk.blue.underline(processId)}]: Restarting strategy...`);

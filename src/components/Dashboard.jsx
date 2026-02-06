@@ -231,29 +231,6 @@ export default function Dashboard() {
         return `${displayHours}:${minutes.toString().padStart(2, "0")}${modifier}`;
     }
 
-    // Main function: adjust all events by a timezone offset in hours
-    function adjustEventsTime(events, offsetHours) {
-        return events.map(event => {
-            if (!event.time || event.time.toLowerCase() === "all day") {
-                return { ...event }; // leave "All Day" as-is
-            }
-
-            const parsed = parseTimeString(event.time);
-            if (!parsed) return { ...event };
-
-            let newHours = parsed.hours + offsetHours;
-
-            // wrap over 24 hours
-            if (newHours >= 24) newHours -= 24;
-            if (newHours < 0) newHours += 24;
-
-            return {
-                ...event,
-                time: formatTime({ hours: newHours, minutes: parsed.minutes })
-            };
-        });
-    }
-
     function getTimeDifference(tz1, tz2) {
         const now = new Date();
 
@@ -271,7 +248,6 @@ export default function Dashboard() {
 
     const fvgStatus = data.find(d => d.type === "fvgStatus")?.status;
     const timezone = data.find(d => d.type === "timezone")?.timezone;
-    const offsetHours = getTimeDifference(userTimezone, timezone);
 
     const dailyInfo = dbData?.dailyInfo;
     const newsDoc = dbData?.news;
@@ -301,7 +277,6 @@ export default function Dashboard() {
     const news = newsDoc?.decision ?? null;
 
     const newsEvents = newsDoc?.events ?? [];
-    const adjustedEvents = adjustEventsTime(newsEvents, offsetHours);
 
 
 
@@ -534,7 +509,7 @@ export default function Dashboard() {
 
                         {newsEvents.length !== 0 && !isWeekend && (
                             <div className="mt-4 space-y-3 text-sm">
-                                {adjustedEvents?.map((n, i) => (
+                                {newsEvents?.map((n, i) => (
                                     <div
                                         key={i}
                                         className="
@@ -548,7 +523,7 @@ export default function Dashboard() {
                                         {/* TIME */}
                                         <div className="flex sm:block">
                                             <span className="sm:hidden text-gray-500 mr-1">Time:</span>
-                                            <span className="text-gray-400">{n.time}</span>
+                                            <span className="text-gray-400">{n.time.toLocaleString()}</span>
                                         </div>
 
                                         {/* CURRENCY */}
