@@ -9,9 +9,12 @@ class TwelveDataKeyManager {
   }
 
   isRateLimitError(err) {
-    const msg = err?.response?.data?.message || err?.message || "";
-    return msg.includes("limit") || msg.includes("Max") || msg.includes("429");
+    return (
+      err?.response?.status === 429 ||
+      err?.response?.data?.code === 429
+    );
   }
+
 
   get currentKey() {
     if (this.exhausted) return null;
@@ -32,6 +35,9 @@ class TwelveDataKeyManager {
 
     while (!this.exhausted && attempts < this.keys.length) {
       const apikey = this.currentKey;
+      if (!apikey) {
+        throw new Error("❌ TwelveData API key is undefined (rotation bug)");
+      }
 
       try {
         const res = await axios.get(url, {
@@ -67,7 +73,7 @@ class TwelveDataKeyManager {
   }
 }
 
-module.exports = global.__TWELVE_DATA_KEY_MANAGER__ ||= 
+module.exports = global.__TWELVE_DATA_KEY_MANAGER__ ||=
   new TwelveDataKeyManager([
     config.twelveData.apiKey,
     config.twelveData.apiKey2,
