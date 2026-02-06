@@ -443,7 +443,7 @@ export default function Dashboard() {
                                 </p>
                                 {biasTime &&
                                     <p className="text-xs text-gray-500 tracking-wide mt-5">
-                                        Valid for: {biasTime}
+                                        Valid for this day: {biasTime}
                                     </p>}
                             </div>
 
