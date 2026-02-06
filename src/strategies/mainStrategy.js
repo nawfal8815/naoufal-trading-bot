@@ -18,6 +18,8 @@ const chalk = require('chalk').default;
 
 let strategyRunning = false; // prevent overlapping runs
 let tradesToday = 0;
+const RESTART_DELAY = 30 * 60 * 1000; // 30 minutes for now
+const RESTART_UNIT = "minutes";
 
 async function runStrategy() {
     //running main strategy logic
@@ -54,18 +56,18 @@ async function runStrategy() {
             await saveLog("Weekend — no trading 🚫");
             tradesToday = 0;
             const delay = await msUntilNextAsiaSession();
-            return restartStrategy(delay, processId);
+            return await restartStrategy(delay, processId);
         }
 
         
 
         //set the timer to auto reexecute the strategie the next day
         const delay = await msUntilNextAsiaSession();
-        setTimeout(() => {
+        setTimeout(async () => {
             console.log("🌅 New Asia session... Restarting the strategy");
             saveLog("🌅 New Asia session... Restarting the strategy");
             tradesToday = 0;
-            return restartStrategy(0, processId);
+            return await restartStrategy(0, processId);
         }, delay);
 
         // Check news first
@@ -98,9 +100,9 @@ async function runStrategy() {
         //get todays signal
         const signal = await signalBuilder(twelveData);
         if (!signal || signal.potential === "none") {
-            console.log("No valid signal, retrying in 30 secs...");
-            saveLog("No valid signal, retrying in 30 secs...");
-            return restartStrategy(30000, processId);
+            console.log(`No valid signal, retrying in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
+            await saveLog(`No valid signal, retrying in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
+            return await restartStrategy(RESTART_DELAY, processId);
         }
         await postData({
             type: "telegram",
@@ -116,6 +118,7 @@ async function runStrategy() {
         if (!fvg) {
             console.log("No virgin FVG found, restarting strategy the next day...");
             saveLog("No virgin FVG found, restarting strategy the next day...");
+            await sleepUntilNextAsiaSession();
             return restartStrategy(0, processId);
         }
 
@@ -171,7 +174,6 @@ async function runStrategy() {
         });
 
 
-
         if (result.status === "confirmed") {
             if (!confirmationTimeChecker(newsRules)) {
                 await postData({
@@ -180,20 +182,20 @@ async function runStrategy() {
                     Trade cancelled due to high-impact news events.
                     `
                 });
-                console.log("Trade cancelled due to news impact.");
-                await saveLog("Trade cancelled due to news impact.");
-                return restartStrategy(0, processId);
+                console.log(`Trade cancelled due to news impact. Restarting strategy in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
+                await saveLog(`Trade cancelled due to news impact. Restarting strategy in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
+                return await restartStrategy(RESTART_DELAY, processId);
             } else {
                 //place trade
                 const entryData = await getEntryData(fvg, result.entryCandle, signal.potential);
                 const displayedEntryData = {
-                    entryPrice: entryData.entryPrice / config.risk.slMultipler,
-                    tp: entryData.tp / config.risk.slMultipler,
-                    sl: entryData.sl / config.risk.slMultipler
+                    entryPrice: Number((entryData.entryPrice / config.risk.slMultipler).toFixed(3)),
+                    tp: Number((entryData.tp / config.risk.slMultipler).toFixed(3)),
+                    sl: Number((entryData.sl / config.risk.slMultipler).toFixed(3))
                 }
                 console.log("Placing trade with entry data: Entry price " + displayedEntryData.entryPrice + ", Stop lose " + displayedEntryData.sl + ", Take profit " + displayedEntryData.tp);
-                await executeTradeOnAllAccounts(entryData);
                 await saveLog("Placing trade with entry data: Entry price " + displayedEntryData.entryPrice + ", Stop lose " + displayedEntryData.sl + ", Take profit " + displayedEntryData.tp);
+                await executeTradeOnAllAccounts(entryData);
                 console.log("Trade placed with succes.");
                 await saveLog("Trade placed with succes.");
                 await postData({
@@ -218,27 +220,28 @@ async function runStrategy() {
                 await monitorTrade(displayedEntryData.tp, displayedEntryData.sl, signal.potential, processId, twelveData);
                 if (tradesToday === config.risk.maxTreadesPerDay) {
                     tradesToday = 0;
-                    console.log("Max trades amount for today has been reached, restarting...");
-                    await saveLog("Max trades amount for today has been reached, restarting...");
+                    console.log("Max trades amount for today has been reached, restarting next Asia session...");
+                    await saveLog("Max trades amount for today has been reached, restarting next Asia session...");
                     await sleepUntilNextAsiaSession();
+                    return restartStrategy(0, processId);
                 } else {
-                    console.log("Trade executed successfully. Restarting strategy.");
-                    await saveLog("Trade executed successfully. Restarting strategy.");
+                    console.log(`Trade executed successfully. Restarting strategy in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
+                    await saveLog(`Trade executed successfully. Restarting strategy in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
+                    return restartStrategy(RESTART_DELAY, processId);
                 }
-                return restartStrategy(0, processId);
             }
         } if (result.status === "expired") {
-            console.log("FVG expired or invalidated. Restarting strategy...");
-            saveLog("FVG expired or invalidated. Restarting strategy...");
-            return restartStrategy(0, processId);
+            console.log(`FVG expired or invalidated. Restarting strategy in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
+            await saveLog(`FVG expired or invalidated. Restarting strategy in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
+            return restartStrategy(RESTART_DELAY, processId);
         }
 
     } catch (err) {
         console.error("Strategy error:", err);
         await saveLog("Strategy error: " + err);
 
-        console.log("Retrying strategy in 30 seconds...");
-        return restartStrategy(30000);
+        console.log(`Retrying strategy in ${RESTART_DELAY / (60 * 1000)} ${RESTART_UNIT}...`);
+        return await restartStrategy(RESTART_DELAY, processId);
     }
 }
 
