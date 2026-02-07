@@ -1,7 +1,7 @@
-# ---- Base image ----
 FROM node:22-slim
 
-# ---- Install system dependencies for Puppeteer ----
+ENV PUPPETEER_SKIP_DOWNLOAD=false
+
 RUN apt-get update && apt-get install -y \
   wget \
   ca-certificates \
@@ -20,27 +20,21 @@ RUN apt-get update && apt-get install -y \
   libxdamage1 \
   libxrandr2 \
   libxss1 \
+  libu2f-udev \
   xdg-utils \
   --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
-# ---- Set working directory ----
 WORKDIR /app
 
-# ---- Copy package files first (for caching) ----
 COPY package*.json ./
-
-# ---- Install Node dependencies ----
 RUN npm install
 
-# ---- Copy the rest of the app ----
 COPY . .
 
-# ---- Build frontend (Vite) ----
 RUN npm run build
 
-# ---- Cloud Run uses port 8080 ----
-EXPOSE 8080
+ENV NODE_ENV=production
 
-# ---- Start Express server ----
+EXPOSE 8080
 CMD ["npm", "start"]
