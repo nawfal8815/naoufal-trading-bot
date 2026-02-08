@@ -1,4 +1,5 @@
-const { is15MinBoundary } = require('./date');
+const { is15MinBoundary, isWeekend } = require('./date');
+const { msUntilNextAsiaSession } = require('./sleepUntilNextAsiaSession');
 const { fetchLatestClosedCandle, getLivePrice } = require('../api/dataFeed');
 const { sleep } = require('./sleep');
 const { postData } = require('../server/apiClient');
@@ -6,6 +7,11 @@ const { saveLivePrice } = require('../../firebase/queries');
 const twelveData = require("../services/twelveDataClient");
 
 async function updateCandlesData() {
+    if (await checkIfWeekend()) {
+        const delay = await msUntilNextAsiaSession();
+        await sleep(delay);
+        await updateCandlesData();
+    }
     try {
         const now = new Date();
         if (is15MinBoundary(now) || true) {
@@ -28,6 +34,11 @@ async function updateCandlesData() {
 }
 
 async function updatePriceData() {
+    if (await checkIfWeekend()) {
+        const delay = await msUntilNextAsiaSession();
+        await sleep(delay);
+        await updateCandlesData();
+    }
     try {
         const price = await getLivePrice(twelveData);
         await saveLivePrice({
