@@ -11,10 +11,10 @@ async function isPriceInFVG(fvg, signal, twelveData) {
 
 function priceInFVG(candle, fvg, signal) {
     if (signal.potential === "buy") {
-        return candle.low >= fvg.gapLow && candle.low <= fvg.gapHigh;
+        return fvg.fullVirgin ? candle.low >= fvg.gapLow && candle.low <= fvg.gapHigh : candle.low >= fvg.gapLow && candle.low <= fvg.gapMid;
     }
     if (signal.potential === "sell") {
-        return candle.high >= fvg.gapLow && candle.high <= fvg.gapHigh;
+        return fvg.fullVirgin ? candle.high >= fvg.gapLow && candle.high <= fvg.gapHigh : candle.high >= fvg.gapMid && candle.high <= fvg.gapHigh;
     }
 }
 
