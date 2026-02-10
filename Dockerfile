@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y \
   libxss1 \
   libu2f-udev \
   xdg-utils \
+  chromium \
   --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 

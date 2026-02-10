@@ -1,4 +1,4 @@
-const { is15MinBoundary, isWeekend } = require('./date');
+const { is15MinBoundary, checkIfWeekend } = require('./date');
 const { msUntilNextAsiaSession } = require('./sleepUntilNextAsiaSession');
 const { fetchLatestClosedCandle, getLivePrice } = require('../api/dataFeed');
 const { sleep } = require('./sleep');

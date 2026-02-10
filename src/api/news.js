@@ -7,11 +7,16 @@ const getNews = async (processId) => {
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
             '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         ]
     });
 
     const page = await browser.newPage();
+
+    page.on('pageerror', err => console.error('PAGE ERROR:', err));
+    page.on('requestfailed', req => console.error('REQ FAIL:', req.url()));
+
 
     // page.on('console', msg => {
     //     console.log('PAGE LOG:', msg.text());
