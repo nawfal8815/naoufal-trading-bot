@@ -68,10 +68,10 @@ export default function Dashboard() {
     const fetchIGData = async () => {
         try {
             const userInfo = await api.get(`/api/get-account-status/${auth.currentUser.uid}`, {
-                        headers: {
-                            Authorization: `Bearer ${idToken}`
-                        }
-                    });
+                headers: {
+                    Authorization: `Bearer ${idToken}`
+                }
+            });
             setIgAccount(userInfo?.data.igAccount || null);
             setMoneyAtRisk(userInfo?.data.igAccount?.balance * config.risk.perTrade || 0);
         } catch (err) {
@@ -509,44 +509,56 @@ export default function Dashboard() {
 
                         {newsEvents.length !== 0 && !isWeekend && (
                             <div className="mt-4 space-y-3 text-sm">
-                                {newsEvents?.map((n, i) => (
-                                    <div
-                                        key={i}
-                                        className="
+                                {newsEvents?.map((n, i) => {
+                                    const eventDate = new Date(n.time);
+                                    const hours = eventDate.getHours();
+                                    const minutes = eventDate.getMinutes();
+                                    const ampm = hours >= 12 ? "PM" : "AM";
+                                    const formattedHours = hours % 12 === 0 ? 12 : hours % 12;
+                                    const formattedMinutes = minutes.toString().padStart(2, "0");
+                                    const timeString = `${formattedHours}:${formattedMinutes} ${ampm}`;
+
+                                    return (
+                                        <div
+                                            key={i}
+                                            className="
                                 w-full
                                 border-b border-[#1f2933] pb-3
                                 flex flex-col gap-1
                                 sm:grid sm:grid-cols-[90px_70px_90px_1fr]
                                 sm:gap-4 sm:items-center
                             "
-                                    >
-                                        {/* TIME */}
-                                        <div className="flex sm:block">
-                                            <span className="sm:hidden text-gray-500 mr-1">Time:</span>
-                                            <span className="text-gray-400">{n.time.toLocaleString()}</span>
-                                        </div>
+                                        >
 
-                                        {/* CURRENCY */}
-                                        <div className="flex sm:block">
-                                            <span className="sm:hidden text-gray-500 mr-1">Currency:</span>
-                                            <span className="text-blue-400 font-semibold">{n.currency}</span>
-                                        </div>
 
-                                        {/* IMPACT */}
-                                        <div className="flex sm:block">
-                                            <span className="sm:hidden text-gray-500 mr-1">Impact:</span>
-                                            <span className={`${impactColor(n.impact)} font-semibold`}>
-                                                {n.impact === "N/A" ? "Non-Economic" : n.impact}
-                                            </span>
-                                        </div>
+                                            {/* TIME */}
+                                            <div className="flex sm:block">
+                                                <span className="sm:hidden text-gray-500 mr-1">Time:</span>
+                                                <span className="text-gray-400">{timeString}</span>
+                                            </div>
 
-                                        {/* EVENT */}
-                                        <div className="flex sm:block text-gray-200">
-                                            <span className="sm:hidden text-gray-500 mr-1">Event:</span>
-                                            <span>{n.event}</span>
+                                            {/* CURRENCY */}
+                                            <div className="flex sm:block">
+                                                <span className="sm:hidden text-gray-500 mr-1">Currency:</span>
+                                                <span className="text-blue-400 font-semibold">{n.currency}</span>
+                                            </div>
+
+                                            {/* IMPACT */}
+                                            <div className="flex sm:block">
+                                                <span className="sm:hidden text-gray-500 mr-1">Impact:</span>
+                                                <span className={`${impactColor(n.impact)} font-semibold`}>
+                                                    {n.impact === "N/A" ? "Non-Economic" : n.impact}
+                                                </span>
+                                            </div>
+
+                                            {/* EVENT */}
+                                            <div className="flex sm:block text-gray-200">
+                                                <span className="sm:hidden text-gray-500 mr-1">Event:</span>
+                                                <span>{n.event}</span>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    )
+                                })}
                             </div>
                         )}
 

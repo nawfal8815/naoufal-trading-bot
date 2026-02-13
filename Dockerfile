@@ -38,4 +38,7 @@ RUN npm run build
 ENV NODE_ENV=production
 
 EXPOSE 8080
+
+RUN npx puppeteer browsers install chrome
+
 CMD ["npm", "start"]

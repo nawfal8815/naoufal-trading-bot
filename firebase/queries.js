@@ -62,11 +62,39 @@ async function saveNews(data) {
         for (const doc of snapshot.docs) {
             await doc.ref.delete();
         }
+
+        // Map events and convert 'time' to a full Date object
+        const eventsWithDates = data.events.map(event => {
+            // Extract hours and minutes from the string
+            const timeString = event.time; // e.g., "3:30pm"
+            const [hourMin, meridiem] = timeString.toLowerCase().split(/(am|pm)/).filter(Boolean);
+            let [hours, minutes] = hourMin.split(":").map(Number);
+
+            if (meridiem === "pm" && hours < 12) hours += 12;
+            if (meridiem === "am" && hours === 12) hours = 0;
+
+            // Create a Date object for today at that time in UTC
+            const now = new Date();
+            const eventDate = new Date(Date.UTC(
+                now.getUTCFullYear(),
+                now.getUTCMonth(),
+                now.getUTCDate(),
+                hours,
+                minutes
+            ));
+
+            return {
+                ...event,
+                eventDate // new field storing proper UTC Date
+            };
+        });
+
         await db.collection("News").add({
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             decision: data.decision,
-            events: data.events
+            events: eventsWithDates
         });
+
     } catch (err) {
         console.error(err);
     }
