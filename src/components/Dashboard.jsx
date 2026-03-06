@@ -279,7 +279,6 @@ export default function Dashboard() {
     const newsEvents = newsDoc?.events ?? [];
 
 
-
     const livePrice = livePriceDoc
         ? {
             price: livePriceDoc.price,
@@ -510,9 +509,12 @@ export default function Dashboard() {
                         {newsEvents.length !== 0 && !isWeekend && (
                             <div className="mt-4 space-y-3 text-sm">
                                 {newsEvents?.map((n, i) => {
-                                    const eventDate = new Date(n.time);
-                                    const hours = eventDate.getHours();
-                                    const minutes = eventDate.getMinutes();
+
+                                    const eventDate = n.time.toDate().toLocaleString();
+                                    const date = new Date(eventDate);
+                                    const hours = date.getHours();
+                                    const minutes = date.getMinutes();
+
                                     const ampm = hours >= 12 ? "PM" : "AM";
                                     const formattedHours = hours % 12 === 0 ? 12 : hours % 12;
                                     const formattedMinutes = minutes.toString().padStart(2, "0");
@@ -522,12 +524,12 @@ export default function Dashboard() {
                                         <div
                                             key={i}
                                             className="
-                                w-full
-                                border-b border-[#1f2933] pb-3
-                                flex flex-col gap-1
-                                sm:grid sm:grid-cols-[90px_70px_90px_1fr]
-                                sm:gap-4 sm:items-center
-                            "
+                                                w-full
+                                                border-b border-[#1f2933] pb-3
+                                                flex flex-col gap-1
+                                                sm:grid sm:grid-cols-[90px_70px_90px_1fr]
+                                                sm:gap-4 sm:items-center
+                                            "
                                         >
 
 

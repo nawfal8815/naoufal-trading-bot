@@ -25,26 +25,24 @@ function buildTradingRules(classifiedEvents) {
     };
 
     for (const item of classifiedEvents) {
+
         if (item.type === "SKIP_DAY") {
             rules.skipDay = true;
         }
 
         if (item.type === "BLOCK_TIME") {
-            rules.blockTimes.push(item.event.time);
+            rules.blockTimes.push(item.time);
         }
 
         if (item.type === "WARN_TIME") {
-            rules.warnTimes.push(item.event.time);
+            rules.warnTimes.push(item.time);
 
         }
     }
 
     if (!rules.skipDay && rules.blockTimes.length === 0 && rules.warnTimes.length === 0) rules.decision = "✅ No high impact news"
     if (!rules.skipDay && rules.blockTimes.length === 0 && rules.warnTimes.length > 0) rules.decision = "⚠ Medium impact news — risky conditions";
-    if (!rules.skipDay && rules.blockTimes.length > 0) {
-        rules.decision = "🚫 High impact news at: ";
-        rules.blockTimes.map((t, i) => rules.decision += rules.decision.includes(t) ? "" : i > 0 ? ", " + t : t);
-    }
+    if (!rules.skipDay && rules.blockTimes.length > 0) rules.decision = "🚫 High impact news";
     if (rules.skipDay) rules.decision = "🚫 High impact news all day — trading disabled"
 
     return rules;

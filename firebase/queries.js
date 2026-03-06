@@ -75,17 +75,17 @@ async function saveNews(data) {
 
             // Create a Date object for today at that time in UTC
             const now = new Date();
-            const eventDate = new Date(Date.UTC(
-                now.getUTCFullYear(),
-                now.getUTCMonth(),
-                now.getUTCDate(),
+            const eventDate = new Date(
+                now.getFullYear(),
+                now.getMonth(),
+                now.getDate(),
                 hours,
                 minutes
-            ));
+            );
 
             return {
                 ...event,
-                eventDate // new field storing proper UTC Date
+                time: eventDate
             };
         });
 
