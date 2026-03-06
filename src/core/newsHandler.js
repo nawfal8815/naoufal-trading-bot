@@ -26,16 +26,32 @@ function buildTradingRules(classifiedEvents) {
 
     for (const item of classifiedEvents) {
 
+        let hours = item.event.time.split(":")[0];
+        const minutes = item.event.time.split(":")[1].slice(0, 2);
+        const meridiem = item.event.time.slice(-2).toLowerCase();
+
+        if (meridiem === "pm" && hours < 12) hours = parseInt(hours) + 12;
+        if (meridiem === "am" && hours === 12) hours = 0;
+
+        const now = new Date();
+        const eventDate = new Date(
+                now.getFullYear(),
+                now.getMonth(),
+                now.getDate(),
+                hours,
+                minutes
+            );
+
         if (item.type === "SKIP_DAY") {
             rules.skipDay = true;
         }
 
         if (item.type === "BLOCK_TIME") {
-            rules.blockTimes.push(item.time);
+            rules.blockTimes.push(eventDate);
         }
 
         if (item.type === "WARN_TIME") {
-            rules.warnTimes.push(item.time);
+            rules.warnTimes.push(eventDate);
 
         }
     }

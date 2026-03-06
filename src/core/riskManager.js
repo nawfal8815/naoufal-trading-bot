@@ -48,14 +48,15 @@ async function getLotsize(entryData, balance) {
 
 async function confirmationTimeChecker(rules, processId) {
 
-    let warningIssued = false;
     const now = new Date();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
     // 🚨 High impact events
     for (const time of rules.blockTimes) {
-        const eventMinutes = timeToMinutes(time);
-        if (eventMinutes !== null && currentMinutes < eventMinutes) {
+        if (new Date(time) < now) {
+            await postData({
+                type: "telegram",
+                msg: `⛔ High-impact event later today. Trading skipped.`
+            });
             console.log(`[${chalk.red(processId)}]: ⛔ High-impact event later today. Trading skipped.`);
             return false;
         }
@@ -63,22 +64,16 @@ async function confirmationTimeChecker(rules, processId) {
 
     // ⚠️ Medium impact events
     for (const time of rules.warnTimes) {
-        const eventMinutes = timeToMinutes(time);
-        if (eventMinutes !== null && currentMinutes < eventMinutes) {
-            warningIssued = true;
+        if (new Date(time) < now) {
+            await postData({
+                type: "telegram",
+                msg: `⚠️ *Caution Advised*
+            Medium-impact news events are scheduled later today for ${config.symbol}. Please trade with caution.
+        `
+            });
             console.log(`[${chalk.yellow.bold(processId)}]: ⚠️ Medium-impact event later today. Trade with caution.`);
             return true;
         }
-    }
-
-    if (warningIssued) {
-        await postData({
-            type: "telegram",
-            msg: `⚠️ *Caution Advised*
-            Medium-impact news events are scheduled later today for ${config.symbol}. Please trade with caution.
-        `
-        });
-        warningIssued = false;
     }
 
     // ✅ No blocking events
