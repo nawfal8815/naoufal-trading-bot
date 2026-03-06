@@ -3,6 +3,8 @@ const { timeToMinutes } = require("../utils/date");
 const { postData } = require("../server/apiClient");
 const chalk = require('chalk').default;
 
+const fixerNumber = config.pipsFixer;
+
 async function getEntryData(fvg, candle, bias) {
     if (bias === "buy") {
         const slLevel = fvg.gapLow < candle.low ? fvg.gapLow : candle.low;
@@ -11,11 +13,11 @@ async function getEntryData(fvg, candle, bias) {
         const ENTRY_PRICE = candle.close;
         return {
             bias,
-            entryPrice: Number(ENTRY_PRICE * config.risk.slMultipler.toFixed(3)),
-            sl: Number((SL * config.risk.slMultipler).toFixed(3)),
-            tp: Number((TP * config.risk.slMultipler).toFixed(3)),
-            slDistance: Number(((ENTRY_PRICE - SL) * config.risk.slMultipler).toFixed(3)),
-            tpDistance: Number(((TP - ENTRY_PRICE) * config.risk.slMultipler).toFixed(3))
+            entryPrice: Number(ENTRY_PRICE * config.risk.slMultipler.toFixed(fixerNumber)),
+            sl: Number((SL * config.risk.slMultipler).toFixed(fixerNumber)),
+            tp: Number((TP * config.risk.slMultipler).toFixed(fixerNumber)),
+            slDistance: Number(((ENTRY_PRICE - SL) * config.risk.slMultipler).toFixed(fixerNumber)),
+            tpDistance: Number(((TP - ENTRY_PRICE) * config.risk.slMultipler).toFixed(fixerNumber))
         };
     } else if (bias === "sell") {
         const slLevel = fvg.gapHigh > candle.high ? fvg.gapHigh : candle.high;
@@ -24,11 +26,11 @@ async function getEntryData(fvg, candle, bias) {
         const ENTRY_PRICE = candle.close;
         return {
             bias,
-            entryPrice: Number(ENTRY_PRICE * config.risk.slMultipler.toFixed(3)),
-            sl: Number((SL * config.risk.slMultipler).toFixed(3)),
-            tp: Number((TP * config.risk.slMultipler).toFixed(3)),
-            slDistance: Number(((SL - ENTRY_PRICE) * config.risk.slMultipler).toFixed(3)),
-            tpDistance: Number(((ENTRY_PRICE - TP) * config.risk.slMultipler).toFixed(3))
+            entryPrice: Number(ENTRY_PRICE * config.risk.slMultipler.toFixed(fixerNumber)),
+            sl: Number((SL * config.risk.slMultipler).toFixed(fixerNumber)),
+            tp: Number((TP * config.risk.slMultipler).toFixed(fixerNumber)),
+            slDistance: Number(((SL - ENTRY_PRICE) * config.risk.slMultipler).toFixed(fixerNumber)),
+            tpDistance: Number(((ENTRY_PRICE - TP) * config.risk.slMultipler).toFixed(fixerNumber))
         };
     }
 }
@@ -36,10 +38,10 @@ async function getEntryData(fvg, candle, bias) {
 async function getLotsize(entryData, balance) {
     const moneyAtRisk = balance * config.risk.perTrade;
     if (entryData.bias === "buy") {
-        return Number((moneyAtRisk / ((entryData.entryPrice - entryData.sl) * config.risk.multiplyer)).toFixed(3));
+        return Number((moneyAtRisk / ((entryData.entryPrice - entryData.sl) * config.risk.multiplyer)).toFixed(fixerNumber));
     }
     if (entryData.bias === "sell") {
-        return Number((moneyAtRisk / ((entryData.sl - entryData.entryPrice) * config.risk.multiplyer)).toFixed(3));
+        return Number((moneyAtRisk / ((entryData.sl - entryData.entryPrice) * config.risk.multiplyer)).toFixed(fixerNumber));
     }
 
 }

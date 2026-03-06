@@ -190,9 +190,9 @@ async function runStrategy() {
                 //place trade
                 const entryData = await getEntryData(fvg, result.entryCandle, signal.potential);
                 const displayedEntryData = {
-                    entryPrice: Number((entryData.entryPrice / config.risk.slMultipler).toFixed(3)),
-                    tp: Number((entryData.tp / config.risk.slMultipler).toFixed(3)),
-                    sl: Number((entryData.sl / config.risk.slMultipler).toFixed(3))
+                    entryPrice: Number((entryData.entryPrice / config.risk.slMultipler).toFixed(config.pipsFixer)),
+                    tp: Number((entryData.tp / config.risk.slMultipler).toFixed(config.pipsFixer)),
+                    sl: Number((entryData.sl / config.risk.slMultipler).toFixed(config.pipsFixer))
                 }
                 console.log(`[${chalk.blue.underline(processId)}]: Placing trade with entry data: Entry price ${displayedEntryData.entryPrice}, Stop lose ${displayedEntryData.sl}, Take profit ${displayedEntryData.tp}`);
                 await saveLog("Placing trade with entry data: Entry price " + displayedEntryData.entryPrice + ", Stop lose " + displayedEntryData.sl + ", Take profit " + displayedEntryData.tp);

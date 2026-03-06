@@ -11,7 +11,7 @@ module.exports = {
     url: process.env.URL,
     tradeQuality: 0,
     botApiKey: process.env.BOT_API_KEY,
-
+    pipsFixer: 5,
     risk: {
         perTrade: 0.01, // 1%
         pips: 0.0016,
