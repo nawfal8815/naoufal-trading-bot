@@ -4,7 +4,6 @@ module.exports = {
     from: "EUR",
     to: "USD",
     timeframe: "M15",
-    daylycandles: 20,
     candles15needed: 4 * 24 * 50, //7 days of candles
     candlesDailyNeeded: 30,
     port: process.env.PORT,

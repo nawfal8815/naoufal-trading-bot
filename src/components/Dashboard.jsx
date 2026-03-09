@@ -6,9 +6,7 @@ import { auth } from "../../firebase/firebase";
 import { onAuthStateChanged } from "firebase/auth"; // Add this import
 import { getLatest, getUserIG, getLogs } from "../../firebase/queries.client";
 import UserMenu from "./UserMenu";
-import config from "../../config/front-end/config";
 import { useNavigate } from "react-router-dom";
-
 
 
 export default function Dashboard() {
@@ -27,6 +25,7 @@ export default function Dashboard() {
     const hasMountedRef = useRef(false);
     const [showGuide, setShowGuide] = useState(false);
     const [idToken, setIdToken] = useState(null);
+    const RISK_PER_TRADE = 0.01; // 1% risk per trade
 
     const fetchApiData = async (currentUser) => { // Pass currentUser as an argument
         if (!currentUser) return; // Don't fetch if no user is logged in
@@ -73,7 +72,7 @@ export default function Dashboard() {
                 }
             });
             setIgAccount(userInfo?.data.igAccount || null);
-            setMoneyAtRisk(userInfo?.data.igAccount?.balance * config.risk.perTrade || 0);
+            setMoneyAtRisk(userInfo?.data.igAccount?.balance * RISK_PER_TRADE || 0);
         } catch (err) {
             setIgAccount(null);
             setMoneyAtRisk(0);

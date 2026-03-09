@@ -12,7 +12,7 @@ const config = require("../../config/config");
 //     if (!series) return [];
 
 //     // Convert object to array sorted descending by date
-//     const dates = Object.keys(series).sort((a, b) => new Date(b) - new Date(a));
+//     const dates = Object.keys(series).sort((a, b) => new Date(b) - new Date(a)).slice(0, config.candlesDailyNeeded);
 //     return dates.map((d) => ({
 //         date: d,
 //         open: parseFloat(series[d]["1. open"]),
@@ -38,9 +38,10 @@ async function getDailySeriesArray(twelveData) {
             console.log("No intraday data returned:", res.data);
             return [];
         }
+
         return res.data.values
             .sort((a, b) => new Date(b.datetime) - new Date(a.datetime))
-            .filter(v => new Date(v.datetime).getDay() < new Date().getDay()) // Exclude today if not closed
+            .filter(v => new Date(v.datetime).getDate() !== new Date().getDate())// Exclude today if not closed
             .map(v => ({
                 date: v.datetime,           // YYYY-MM-DD
                 open: parseFloat(v.open),
