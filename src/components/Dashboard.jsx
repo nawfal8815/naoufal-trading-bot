@@ -206,44 +206,6 @@ export default function Dashboard() {
 
         return "text-gray-400";
     };
-    function parseTimeString(timeStr) {
-        if (!timeStr || timeStr.toLowerCase() === "all day") return null;
-
-        const match = timeStr.match(/(\d{1,2})(?::(\d{2}))?(am|pm)/i);
-        if (!match) return null;
-
-        let hours = parseInt(match[1], 10);
-        const minutes = match[2] ? parseInt(match[2], 10) : 0;
-        const modifier = match[3].toLowerCase();
-
-        if (modifier === "pm" && hours < 12) hours += 12;
-        if (modifier === "am" && hours === 12) hours = 0;
-
-        return { hours, minutes };
-    }
-
-    // Helper: convert {hours, minutes} back to 12-hour string
-    function formatTime({ hours, minutes }) {
-        const modifier = hours >= 12 ? "pm" : "am";
-        let displayHours = hours % 12;
-        if (displayHours === 0) displayHours = 12;
-        return `${displayHours}:${minutes.toString().padStart(2, "0")}${modifier}`;
-    }
-
-    function getTimeDifference(tz1, tz2) {
-        const now = new Date();
-
-        // Get offsets in minutes
-        const offset1 = -now.toLocaleString("en-US", { timeZone: tz1, hour12: false, hour: "2-digit", minute: "2-digit" })
-            .split(":").reduce((acc, val, idx) => acc + (idx === 0 ? parseInt(val) * 60 : parseInt(val)), 0);
-
-        const offset2 = -now.toLocaleString("en-US", { timeZone: tz2, hour12: false, hour: "2-digit", minute: "2-digit" })
-            .split(":").reduce((acc, val, idx) => acc + (idx === 0 ? parseInt(val) * 60 : parseInt(val)), 0);
-
-        // Calculate difference in hours
-        const diffHours = (offset2 - offset1) / 60;
-        return diffHours;
-    }
 
     const fvgStatus = data.find(d => d.type === "fvgStatus")?.status;
     const timezone = data.find(d => d.type === "timezone")?.timezone;
@@ -508,7 +470,7 @@ export default function Dashboard() {
                         {newsEvents.length !== 0 && !isWeekend && (
                             <div className="mt-4 space-y-3 text-sm">
                                 {newsEvents?.map((n, i) => {
-
+                                    
                                     const eventDate = n.time.toDate().toLocaleString();
                                     const date = new Date(eventDate);
                                     const hours = date.getHours();
