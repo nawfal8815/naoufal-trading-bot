@@ -265,48 +265,6 @@ export default function MarketCanvas({ candles, fvgs, bias, dailyTargetPrice }) 
 
                 ctx.fillStyle = fillColor;
                 ctx.fillRect(startX, rectY, fvgWidth, fvgHeight);
-                if (fvg.fullVirgin === "50%") {
-                    // Always compute midpoint safely
-                    const midPrice =
-                        fvg.middlePrice ??
-                        (fvg.topPrice + fvg.bottomPrice) / 2;
-
-                    const midY = priceToY(midPrice);
-
-                    // Guard: must be visible
-                    if (
-                        startX < -100 ||
-                        startX > rect.width + 100 ||
-                        midY < padding ||
-                        midY > rect.height - padding
-                    ) {
-                        return;
-                    }
-
-                    ctx.save(); // 🧠 isolate canvas state
-
-                    ctx.shadowBlur = 0;          // 🔴 IMPORTANT
-                    ctx.shadowColor = "transparent";
-
-                    ctx.strokeStyle = "rgba(255,255,255,0.9)";
-                    ctx.lineWidth = 1;
-                    ctx.setLineDash([6, 4]);
-
-                    ctx.beginPath();
-                    ctx.moveTo(startX, midY);
-                    ctx.lineTo(startX + fvgWidth, midY);
-                    ctx.stroke();
-
-                    ctx.restore(); // 🧠 restore state
-                }
-
-
-
-                // Add "FVG" label
-                ctx.fillStyle = "white"; // White color for the text
-                ctx.font = "10px Arial";
-                ctx.textAlign = "right"; // Changed to right alignment
-                ctx.fillText("FVG", endX - 2, rectY - 2); // Position near the right edge
             });
         }
 
@@ -344,12 +302,7 @@ export default function MarketCanvas({ candles, fvgs, bias, dailyTargetPrice }) 
                 ctx.lineTo(targetEndX, targetY);
                 ctx.stroke();
 
-                // Add "DAILY TARGET" label
-                ctx.fillStyle = "teal"; // Color for the text, matching the line
-                ctx.font = "10px Arial";
-                ctx.textAlign = "right"; // Changed to right alignment
-                ctx.fillText("DAILY TARGET", targetEndX - 5, targetY - 5); // Position near the right end
-                ctx.setLineDash([]); // Reset line dash to solid for other drawings
+                ctx.setLineDash([]);
             }
         }
 
@@ -687,12 +640,49 @@ export default function MarketCanvas({ candles, fvgs, bias, dailyTargetPrice }) 
         setUserZoomedX(false); // Re-enable default horizontal zoom
     };
 
+    const onTouchStart = e => {
+        if (!e.touches.length) return;
+
+        const touch = e.touches[0];
+
+        onMouseDown({
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+    };
+
+    const onTouchMove = e => {
+        if (!e.touches.length) return;
+
+        const touch = e.touches[0];
+
+        onMouseMove({
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+    };
+
+    const onTouchEnd = () => {
+        onMouseUp();
+    };
+
     return (
         <div className="bg-[#0b0f14] rounded-xl p-3">
             <div className="flex justify-between items-center mb-2">
                 <h2 className="text-sm text-gray-300 font-semibold">
                     Market Structure
                 </h2>
+
+                <div className="flex gap-2 items-center">
+                    <h2 className="px-3 py-1 text-xs border-2 border-teal-800 border-dashed rounded">Daily target</h2>
+
+                    <h2 className="px-3 py-1 text-xs 
+                    bg-[linear-gradient(to_right,rgba(255,0,0,0.2)_50%,rgba(0,255,0,0.2)_50%)] 
+                    rounded">
+                        FVG
+                    </h2>
+                </div>
+
 
                 <button
                     onClick={resetView}
@@ -705,11 +695,15 @@ export default function MarketCanvas({ candles, fvgs, bias, dailyTargetPrice }) 
             <div className="relative w-full h-[700px]">
                 <canvas
                     ref={canvasRef}
-                    className="w-full h-full cursor-grab active:cursor-grabbing"
+                    className="w-full h-full cursor-grab active:cursor-grabbing touch-none"
                     onMouseDown={onMouseDown}
                     onMouseMove={onMouseMove}
                     onMouseUp={onMouseUp}
                     onMouseLeave={onMouseUp}
+
+                    onTouchStart={onTouchStart}
+                    onTouchMove={onTouchMove}
+                    onTouchEnd={onTouchEnd}
                 />
                 <button
                     onClick={goToLatestCandle}
